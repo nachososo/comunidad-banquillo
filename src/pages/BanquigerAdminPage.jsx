@@ -88,12 +88,6 @@ const panelViews = [
   { id: 'teams', label: 'Equipos', icon: Trophy },
 ];
 
-const demoTeams = [
-  { id: 'demo-1', manager: 'Nacho', name: 'Pizarra y Triple', players: 7, value: 61.4, points: 42.5 },
-  { id: 'demo-2', manager: 'Briseida', name: 'Social Basket Club', players: 7, value: 59.8, points: 38.8 },
-  { id: 'demo-3', manager: 'Irene', name: 'Delegación Fantasy', players: 7, value: 62.1, points: 35.2 },
-];
-
 const BanquigerAdminPage = () => {
   const { authMode, loading, isAuthenticated, isAdmin, user } = useAuth();
   const [settings, setSettings] = useState(() => getStoredBanquigerSettings());
@@ -155,35 +149,21 @@ const BanquigerAdminPage = () => {
 
   const saveRemote = (key, payload) => void saveGameDocument(key, 'banquiger', payload);
 
-  const fantasyTeams = useMemo(() => {
-    let localTeam = null;
-    try {
-      const stored = JSON.parse(
-        window.localStorage.getItem(`banquiger-team-v2:${user?.id}`)
-          || window.localStorage.getItem('banquiger-team-v2')
-          || 'null',
-      );
-      if (stored) {
-        const selected = Array.isArray(stored.selectedIds) ? stored.selectedIds.map(String) : [];
-        const value = selected.reduce((total, id) => total + (players.find((player) => player.id === id)?.price || 0), 0);
-        localTeam = {
-          id: 'local-team',
-          manager: stored.managerName || 'Manager invitado',
-          name: stored.teamName || 'Mi Banquiger',
-          players: selected.length,
-          value,
-          points: 0,
-          local: true,
-        };
-      }
-    } catch {
-      localTeam = null;
-    }
-    const sharedTeams = remoteTeams.length
-      ? remoteTeams.map((team) => ({ id: team.id, manager: team.manager_name || 'Manager', name: team.name, players: team.selected_ids?.length || 0, value: Number(team.budget || 0), points: Number(team.total_points || 0) }))
-      : demoTeams;
-    return [...(localTeam && !remoteTeams.some((team) => team.user_id === user?.id) ? [localTeam] : []), ...sharedTeams].sort((a, b) => b.points - a.points);
-  }, [players, remoteTeams, user?.id]);
+  const fantasyTeams = useMemo(() => remoteTeams.map((team) => {
+    const selected = Array.isArray(team.selected_ids) ? team.selected_ids.map(String) : [];
+    const value = selected.reduce(
+      (total, id) => total + (players.find((player) => player.id === id)?.price || 0),
+      0,
+    );
+    return {
+      id: team.id,
+      manager: team.manager_name || 'Manager',
+      name: team.name || 'Mi Banquiger',
+      players: selected.length,
+      value,
+      points: Number(team.total_points) || 0,
+    };
+  }).sort((a, b) => b.points - a.points), [players, remoteTeams]);
 
   const filteredPlayers = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
