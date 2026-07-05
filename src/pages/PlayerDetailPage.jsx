@@ -371,7 +371,7 @@ const PlayerDetailPage = () => {
 
                       <h3 className="text-white text-xl font-bold mb-4 flex items-center gap-2">
                         <Star className="text-[hsl(43_65%_52%)]" size={20} />
-                        Perfil del Jugador
+                        Perfil de {player.name}
                       </h3>
 
                       <div className="space-y-4 text-gray-300 leading-relaxed">

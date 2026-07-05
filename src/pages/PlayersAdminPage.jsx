@@ -502,9 +502,7 @@ const PlayersAdminPage = () => {
                     }
                     rows={7}
                     className="w-full resize-y rounded-lg border border-white/10 bg-black/40 px-3 py-3 text-sm font-semibold leading-relaxed text-white outline-none transition focus:border-[hsl(43_65%_52%)]"
-                    placeholder={form.team === 'staff'
-                      ? `Escribe aquí el texto que aparecerá en Perfil de ${form.position || 'Staff'}. Deja una línea en blanco para separar párrafos.`
-                      : 'Escribe aquí el texto que aparecerá en Perfil del Jugador. Deja una línea en blanco para separar párrafos.'}
+                    placeholder={`Escribe aquí el texto que aparecerá en Perfil de ${form.name || 'esta persona'}. Deja una línea en blanco para separar párrafos.`}
                   />
                 </label>
 

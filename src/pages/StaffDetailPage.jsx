@@ -133,7 +133,7 @@ const StaffDetailPage = () => {
 
               <article className="gold-gradient relative overflow-hidden rounded-2xl border border-[hsl(43_65%_52%_/_0.15)] p-8">
                 <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-[hsl(43_65%_52%)] opacity-20 blur-[80px]" />
-                <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-white"><Star size={20} className="text-[hsl(43_65%_52%)]" />Perfil de {member.role}</h2>
+                <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-white"><Star size={20} className="text-[hsl(43_65%_52%)]" />Perfil de {member.name}</h2>
                 <div className="space-y-4 leading-relaxed text-gray-300">
                   {profileParagraphs.map((paragraph, index) => <p key={`${index}-${paragraph}`}>{paragraph}</p>)}
                 </div>
