@@ -828,7 +828,7 @@ const BanquigerPage = () => {
       </div>
 
       <div>
-        <p className="mb-2 text-center text-xs font-bold uppercase text-gray-500">Banquillo</p>
+        <p className="mb-2 w-full max-w-none text-center text-xs font-bold uppercase text-gray-500">Banquillo</p>
         <div className="grid grid-cols-2 gap-3">
           <PlayerToken player={benchPlayers[0]} row={rowsByPlayer.get(benchPlayers[0]?.id)} compact slotLabel="Suplente" />
           <PlayerToken player={benchPlayers[1]} row={rowsByPlayer.get(benchPlayers[1]?.id)} compact slotLabel="Suplente" />
@@ -900,7 +900,7 @@ const BanquigerPage = () => {
             </div>
 
             <div>
-              <p className="mb-2 text-center text-xs font-bold uppercase text-gray-500">Banquillo</p>
+              <p className="mb-2 w-full max-w-none text-center text-xs font-bold uppercase text-gray-500">Banquillo</p>
               <div className="grid gap-3">
                 {modalToken(viewedBenchPlayers[0], 'Suplente')}
                 {modalToken(viewedBenchPlayers[1], 'Suplente')}
@@ -1012,7 +1012,7 @@ const BanquigerPage = () => {
         </div>
 
         <div className="mt-3">
-          <p className="mb-2 text-center text-xs font-bold uppercase text-gray-500">Banquillo</p>
+          <p className="mb-2 w-full max-w-none text-center text-xs font-bold uppercase text-gray-500">Banquillo</p>
           <div className="grid grid-cols-2 gap-3">
             <PlayerToken player={benchPlayers[0]} row={rowsByPlayer.get(benchPlayers[0]?.id)} compact slotLabel="Suplente" />
             <PlayerToken player={benchPlayers[1]} row={rowsByPlayer.get(benchPlayers[1]?.id)} compact slotLabel="Suplente" />
