@@ -44,6 +44,7 @@ import {
   GAME_DATA_KEYS,
   loadBanquigerBundle,
   loadBanquigerTeam,
+  loadBanquigerTeams,
   loadUserGameDocument,
   saveBanquigerTeam,
   saveUserGameDocument,
@@ -457,6 +458,7 @@ const BanquigerPage = () => {
   const [powerTargetTeamId, setPowerTargetTeamId] = useState('');
   const [powerTargetPlayerId, setPowerTargetPlayerId] = useState('');
   const [powerNotice, setPowerNotice] = useState('');
+  const [registeredTeams, setRegisteredTeams] = useState([]);
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
@@ -482,7 +484,7 @@ const BanquigerPage = () => {
       setMarketPlayers(getStoredBanquigerPlayers(buildPlayerMarket()));
     });
     return () => { active = false; };
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
@@ -508,6 +510,19 @@ const BanquigerPage = () => {
   useEffect(() => {
     if (user?.name) setManagerName(user.name);
   }, [user]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      setRegisteredTeams([]);
+      return undefined;
+    }
+
+    let active = true;
+    loadBanquigerTeams().then((teams) => {
+      if (active) setRegisteredTeams(teams);
+    });
+    return () => { active = false; };
+  }, [isAuthenticated, user?.id]);
 
   const selectedPlayers = useMemo(
     () => selectedIds.map((id) => marketPlayers.find((player) => player.id === id)).filter(Boolean),
@@ -572,19 +587,19 @@ const BanquigerPage = () => {
   const missingStarterPositions = STARTER_POSITIONS.filter((position) => !startersByPosition[position]);
   const startersComplete = missingStarterPositions.length === 0;
   const canSave = selectedIds.length === teamSize && startersComplete && remainingBudget >= 0;
-  const baseLeaderboard = [
-    {
-      id: 'local-team',
-      manager: managerName || 'Manager invitado',
-      team: teamName || 'Mi Banquiger',
-      points: selectedScore,
-      selectedIds,
-      current: true,
-    },
-    { id: 'demo-1', manager: 'Nacho', team: 'Pizarra y Triple', points: 42.5, selectedIds: [114, 104, 110, 107, 108, 102, 117] },
-    { id: 'demo-2', manager: 'Briseida', team: 'Social Basket Club', points: 38.8, selectedIds: [101, 106, 103, 112, 109, 113, 115] },
-    { id: 'demo-3', manager: 'Irene', team: 'Delegación Fantasy', points: 35.2, selectedIds: [116, 104, 111, 107, 108, 105, 117] },
-  ];
+  const baseLeaderboard = registeredTeams.map((team) => {
+    const current = team.user_id === user?.id;
+    return {
+      id: current ? 'local-team' : String(team.id),
+      manager: current ? managerName || team.manager_name || user?.name || 'Manager' : team.manager_name || 'Manager',
+      team: current ? teamName || team.name || 'Mi Banquiger' : team.name || 'Mi Banquiger',
+      points: current ? selectedScore : Number(team.total_points) || 0,
+      selectedIds: current
+        ? selectedIds
+        : (Array.isArray(team.selected_ids) ? team.selected_ids.map(String) : []),
+      current,
+    };
+  });
   const leaderboard = baseLeaderboard.map((entry) => {
     const teamUses = currentPowerUses.filter((use) => use.targetTeamId === entry.id);
     const forcedPlayerIds = new Set(teamUses.filter((use) => use.effect === 'force_sale').map((use) => use.targetPlayerId));
@@ -637,6 +652,12 @@ const BanquigerPage = () => {
       budget,
       selectedIds: nextSelectedIds,
       selectedMatchId: latestPublishedMatch?.id,
+    }).then(({ data }) => {
+      if (!data) return;
+      setRegisteredTeams((currentTeams) => {
+        const remainingTeams = currentTeams.filter((team) => team.id !== data.id);
+        return [...remainingTeams, data];
+      });
     });
   };
 
@@ -1159,7 +1180,7 @@ const BanquigerPage = () => {
       </div>
 
       <div className="space-y-2">
-        {leaderboard.map((entry, index) => (
+        {leaderboard.length > 0 ? leaderboard.map((entry, index) => (
           <button
             type="button"
             key={`${entry.manager}-${entry.team}`}
@@ -1185,7 +1206,13 @@ const BanquigerPage = () => {
               <Eye size={16} />
             </span>
           </button>
-        ))}
+        )) : (
+          <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-5 py-8 text-center">
+            <UsersRound className="mx-auto text-white/20" />
+            <p className="mt-3 font-black text-gray-300">Todavía no hay equipos en la clasificación</p>
+            <p className="mt-1 text-sm text-gray-600">Los equipos aparecerán aquí cuando sus usuarios los creen.</p>
+          </div>
+        )}
       </div>
 
       {renderRankingTeamModal()}

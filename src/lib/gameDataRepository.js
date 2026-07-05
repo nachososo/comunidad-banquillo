@@ -127,11 +127,12 @@ export const saveBanquigerTeam = async ({ userId, managerName, teamName, budget,
   return { remote: !error, data, error };
 };
 
-export const loadBanquigerTeams = async () => {
+export const loadBanquigerTeams = async (season = '2025-2026') => {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase
     .from('banquiger_teams')
     .select('id,user_id,name,manager_name,budget,total_points,selected_ids')
+    .eq('season', season)
     .order('total_points', { ascending: false });
   return error ? [] : data || [];
 };
