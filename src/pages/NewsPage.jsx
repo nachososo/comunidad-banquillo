@@ -62,26 +62,26 @@ const NewsPage = () => {
 
       <main className="flex-1 py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <section className="mb-8">
+          <section className="mb-8 text-center">
             <span className="inline-flex items-center gap-2 text-sm font-black uppercase text-[hsl(43_65%_52%)]">
               <Newspaper size={18} />
               Actualidad banquiller
             </span>
             <h1 className="mt-3 text-white">{activeCategory ? `Categoría: ${activeCategory}` : 'Noticias'}</h1>
-            <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-400">
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-gray-400">
               {activeCategory ? 'Publicaciones de la más reciente a la más antigua.' : 'Crónicas, avisos, previas y novedades de La Comunidad del Banquillo.'}
             </p>
           </section>
 
           {isLoading ? (
             <div className="rounded-xl border border-white/10 bg-[#111]/90 p-10 text-center">
-              <p className="text-sm font-black uppercase text-gray-400">Cargando noticias...</p>
+              <p className="mx-auto w-full max-w-none text-sm font-black uppercase text-gray-400">Cargando noticias...</p>
             </div>
           ) : !sortedPosts.length ? (
             <div className="rounded-xl border border-white/10 bg-[#111]/90 p-10 text-center">
               <Newspaper className="mx-auto text-white/20" size={42} />
-              <p className="mt-4 text-lg font-black text-white">{activeCategory ? `No hay noticias en ${activeCategory}` : 'Todavía no hay noticias publicadas'}</p>
-              <p className="mt-2 text-sm text-gray-500">{activeCategory ? 'Puedes volver a todas las noticias o elegir otra categoría.' : 'Cuando el club publique novedades aparecerán aquí.'}</p>
+              <p className="mx-auto mt-4 w-full max-w-none text-lg font-black text-white">{activeCategory ? `No hay noticias en ${activeCategory}` : 'Todavía no hay noticias publicadas'}</p>
+              <p className="mx-auto mt-2 w-full max-w-none text-sm text-gray-500">{activeCategory ? 'Puedes volver a todas las noticias o elegir otra categoría.' : 'Cuando el club publique novedades aparecerán aquí.'}</p>
             </div>
           ) : (
             <div className="space-y-8">
