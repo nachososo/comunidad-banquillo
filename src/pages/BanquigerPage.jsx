@@ -12,6 +12,7 @@ import {
   Eye,
   ListOrdered,
   LogIn,
+  Pencil,
   RotateCcw,
   Save,
   Shirt,
@@ -446,6 +447,9 @@ const BanquigerPage = () => {
   const latestPublishedMatch = seasonMatches.at(-1) || null;
   const [managerName, setManagerName] = useState('');
   const [teamName, setTeamName] = useState('Mi Banquiger');
+  const [teamNameDraft, setTeamNameDraft] = useState('Mi Banquiger');
+  const [isEditingTeamName, setIsEditingTeamName] = useState(false);
+  const [teamNameNotice, setTeamNameNotice] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
   const [positionFilter, setPositionFilter] = useState('all');
   const [priceSort, setPriceSort] = useState('all');
@@ -510,6 +514,10 @@ const BanquigerPage = () => {
   useEffect(() => {
     if (user?.name) setManagerName(user.name);
   }, [user]);
+
+  useEffect(() => {
+    if (!isEditingTeamName) setTeamNameDraft(teamName);
+  }, [isEditingTeamName, teamName]);
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -636,19 +644,19 @@ const BanquigerPage = () => {
     void saveUserGameDocument(GAME_DATA_KEYS.banquigerPowerState, 'banquiger', nextState);
   }, [isAuthenticated, leaderboard, powerState, powers, settings.currentRound]);
 
-  const persistTeam = (nextSelectedIds = selectedIds) => {
+  const persistTeam = (nextSelectedIds = selectedIds, nextTeamName = teamName) => {
     window.localStorage.setItem(
       teamStorageKey,
       JSON.stringify({
         managerName,
-        teamName,
+        teamName: nextTeamName,
         selectedIds: nextSelectedIds,
       }),
     );
     void saveBanquigerTeam({
       userId: user?.id,
       managerName: managerName || user?.name,
-      teamName,
+      teamName: nextTeamName,
       budget,
       selectedIds: nextSelectedIds,
       selectedMatchId: latestPublishedMatch?.id,
@@ -659,6 +667,20 @@ const BanquigerPage = () => {
         return [...remainingTeams, data];
       });
     });
+  };
+
+  const saveTeamName = (event) => {
+    event.preventDefault();
+    const nextTeamName = teamNameDraft.trim().replace(/\s+/g, ' ').slice(0, 40);
+    if (!nextTeamName) {
+      setTeamNameNotice('Escribe un nombre para tu equipo.');
+      return;
+    }
+    setTeamName(nextTeamName);
+    setTeamNameDraft(nextTeamName);
+    setIsEditingTeamName(false);
+    setTeamNameNotice('Nombre actualizado.');
+    persistTeam(selectedIds, nextTeamName);
   };
 
   const togglePlayer = (player) => {
@@ -1316,7 +1338,40 @@ const BanquigerPage = () => {
                   </p>
                   <h1 className="mt-1 text-3xl font-black leading-none text-white md:text-5xl">{teamName}</h1>
                   <p className="mt-2 text-xs font-bold uppercase text-gray-500">{managerName || 'Manager invitado'}</p>
+                  {teamNameNotice && <p className="mt-2 text-xs font-bold text-[hsl(43_65%_62%)]">{teamNameNotice}</p>}
                 </div>
+                {isEditingTeamName ? (
+                  <form onSubmit={saveTeamName} className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                    <label className="sr-only" htmlFor="banquiger-team-name">Nombre del equipo</label>
+                    <input
+                      id="banquiger-team-name"
+                      value={teamNameDraft}
+                      onChange={(event) => setTeamNameDraft(event.target.value)}
+                      maxLength={40}
+                      autoFocus
+                      className="h-11 min-w-0 rounded-lg border border-[hsl(43_65%_52%_/_0.45)] bg-black/45 px-4 text-sm font-black text-white outline-none focus:border-[hsl(43_65%_52%)] sm:w-72"
+                    />
+                    <button type="submit" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[hsl(43_65%_52%)] px-4 text-xs font-black uppercase text-black">
+                      <Save size={15} /> Guardar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setIsEditingTeamName(false); setTeamNameDraft(teamName); setTeamNameNotice(''); }}
+                      className="inline-flex h-11 items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 text-gray-300 hover:border-white/25 hover:text-white"
+                      aria-label="Cancelar cambio de nombre"
+                    >
+                      <X size={16} />
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { setTeamNameDraft(teamName); setIsEditingTeamName(true); setTeamNameNotice(''); }}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-[hsl(43_65%_52%_/_0.35)] bg-[hsl(43_65%_52%_/_0.06)] px-4 text-xs font-black uppercase text-[hsl(43_65%_62%)] transition hover:border-[hsl(43_65%_52%)] hover:bg-[hsl(43_65%_52%_/_0.12)]"
+                  >
+                    <Pencil size={15} /> Cambiar nombre
+                  </button>
+                )}
               </div>
 
               <nav className="grid gap-2 md:grid-cols-4">
