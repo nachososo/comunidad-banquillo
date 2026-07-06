@@ -17,9 +17,7 @@ const PlayerCard = ({ player, onSelect }) => {
         <span className="rounded-lg bg-white/5 px-3 py-2">{player.season}</span>
       </div>
 
-      <p className="mt-4 flex-1 text-sm text-gray-300">{player.description}</p>
-
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-1 content-start flex-wrap gap-2">
         {player.tags.slice(0, 4).map((tag) => (
           <span
             key={tag}
