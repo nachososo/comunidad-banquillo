@@ -3,12 +3,16 @@
 
 drop policy if exists profiles_select_own_or_admin on public.profiles;
 create policy profiles_select_own_or_admin on public.profiles
-for select using (id = auth.uid());
+for select to authenticated using (
+  id = (select auth.uid())
+  or (select private.current_user_role()) = 'admin'
+);
 
 drop policy if exists profiles_update_own_or_admin on public.profiles;
 create policy profiles_update_own_or_admin on public.profiles
-for update using (id = auth.uid())
-with check (id = auth.uid());
+for update to authenticated
+using ((select private.current_user_role()) = 'admin')
+with check ((select private.current_user_role()) = 'admin');
 
 drop policy if exists players_admin_write on public.players;
 create policy players_admin_write on public.players for all using (

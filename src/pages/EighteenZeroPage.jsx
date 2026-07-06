@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
@@ -6,6 +6,8 @@ import GameStart from '@/components/eighteenZero/GameStart.jsx';
 import DraftRound from '@/components/eighteenZero/DraftRound.jsx';
 import ResultScreen from '@/components/eighteenZero/ResultScreen.jsx';
 import CoachSelection from '@/components/eighteenZero/CoachSelection.jsx';
+import Ranking from '@/components/eighteenZero/Ranking.jsx';
+import { useAuth } from '@/auth/AuthContext.jsx';
 import { DRAFT_POSITIONS } from '@/data/cdbPlayers.js';
 import { buildEventEffect, getRandomSeasonEvents } from '@/data/cdbEvents.js';
 import { calculateTeamScore } from '@/utils/calculateTeamScore.js';
@@ -17,8 +19,10 @@ import {
   getStoredEighteenZeroPlayers,
 } from '@/utils/eighteenZeroStorage.js';
 import { loadEighteenZeroBundle } from '@/lib/gameDataRepository.js';
+import { loadEighteenZeroRanking, submitEighteenZeroScore } from '@/lib/eighteenZeroRankingRepository.js';
 
 const EighteenZeroPage = () => {
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
   const [phase, setPhase] = useState('start');
   const [currentPosition, setCurrentPosition] = useState(null);
   const [selectedPlayers, setSelectedPlayers] = useState([]);
@@ -29,6 +33,28 @@ const EighteenZeroPage = () => {
   const [seasonEvents, setSeasonEvents] = useState(() => getStoredEighteenZeroEvents());
   const [playerChemistryLinks, setPlayerChemistryLinks] = useState(() => getStoredEighteenZeroChemistryLinks());
   const [coaches, setCoaches] = useState(() => getStoredEighteenZeroCoaches());
+  const [ranking, setRanking] = useState([]);
+  const [isLoadingRanking, setIsLoadingRanking] = useState(false);
+  const [rankingNotice, setRankingNotice] = useState('');
+  const [rankingError, setRankingError] = useState('');
+
+  const refreshRanking = useCallback(async () => {
+    if (!isAuthenticated) {
+      setRanking([]);
+      setIsLoadingRanking(false);
+      return;
+    }
+
+    setIsLoadingRanking(true);
+    setRankingError('');
+    try {
+      setRanking(await loadEighteenZeroRanking({ isAuthenticated }));
+    } catch (loadError) {
+      setRankingError(loadError.message || 'No se ha podido cargar la clasificación.');
+    } finally {
+      setIsLoadingRanking(false);
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     let active = true;
@@ -47,6 +73,10 @@ const EighteenZeroPage = () => {
     });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    refreshRanking();
+  }, [refreshRanking]);
 
   const roundIndex = selectedPlayers.length;
   const selectedKey = selectedPlayers.map((player) => player.id).join('|');
@@ -74,6 +104,8 @@ const EighteenZeroPage = () => {
     setResult(null);
     setSelectedCoach(null);
     setError('');
+    setRankingNotice('');
+    setRankingError('');
   };
 
   const handleChoosePosition = (position) => {
@@ -104,13 +136,31 @@ const EighteenZeroPage = () => {
     setCurrentPosition(null);
   };
 
-  const handleSelectCoach = (coach) => {
+  const handleSelectCoach = async (coach) => {
     const randomEvents = getRandomSeasonEvents(seasonEvents, selectedPlayers);
     const coachEvent = { ...coach.event, effect: buildEventEffect(coach.event), guaranteedByCoach: true };
     const randomFactor = Math.floor(Math.random() * 7) - 3;
+    const finalResult = calculateTeamScore({ team: selectedPlayers, selectedEvents: [coachEvent, ...randomEvents], randomFactor, playerChemistryLinks });
     setSelectedCoach(coach);
-    setResult(calculateTeamScore({ team: selectedPlayers, selectedEvents: [coachEvent, ...randomEvents], randomFactor, playerChemistryLinks }));
+    setResult(finalResult);
     setPhase('result');
+
+    if (!isAuthenticated) {
+      setRankingNotice('Inicia sesión para guardar esta puntuación en el ranking.');
+      return;
+    }
+
+    try {
+      await submitEighteenZeroScore({
+        user,
+        score: finalResult.scores.totalScore,
+        record: finalResult.recordInfo.record,
+      });
+      setRankingNotice('Puntuación guardada en el ranking.');
+      await refreshRanking();
+    } catch (saveError) {
+      setRankingError(saveError.message || 'No se ha podido guardar la puntuación.');
+    }
   };
 
   return (
@@ -144,6 +194,27 @@ const EighteenZeroPage = () => {
             {phase === 'coach' && <CoachSelection coaches={coaches} onSelect={handleSelectCoach} />}
             {phase === 'result' && result && (
               <ResultScreen team={selectedPlayers} coach={selectedCoach} result={result} onRestart={startDraft} />
+            )}
+            {(phase === 'start' || phase === 'result') && (
+              <div className="mt-8 space-y-3">
+                {rankingNotice && (
+                  <p className="rounded-lg border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-100">
+                    {rankingNotice}
+                  </p>
+                )}
+                {rankingError && (
+                  <p className="rounded-lg border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100">
+                    {rankingError}
+                  </p>
+                )}
+                <Ranking
+                  entries={ranking}
+                  currentUserId={user?.id}
+                  isAuthenticated={isAuthenticated}
+                  isAuthLoading={authLoading}
+                  isLoading={isLoadingRanking}
+                />
+              </div>
             )}
           </div>
         </main>

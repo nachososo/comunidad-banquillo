@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, Navigate } from 'react-router-dom';
-import { ArrowLeft, ShieldCheck, UserCog, UsersRound } from 'lucide-react';
+import { ArrowLeft, RefreshCw, ShieldCheck, UserCog, UsersRound } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { useAuth } from '@/auth/AuthContext.jsx';
@@ -23,6 +23,39 @@ const UserManagementPage = () => {
   const [savingUserId, setSavingUserId] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
 
+  const loadProfiles = useCallback(async () => {
+    setIsLoadingProfiles(true);
+    setErrorMessage('');
+
+    if (!isSupabaseConfigured) {
+      setProfiles([
+        {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          created_at: user.createdAt,
+        },
+      ]);
+      setIsLoadingProfiles(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id,email,name,role,created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      setErrorMessage(error.message);
+      setProfiles([]);
+    } else {
+      setProfiles(data || []);
+    }
+
+    setIsLoadingProfiles(false);
+  }, [user]);
+
   const roleCounts = useMemo(
     () =>
       profiles.reduce(
@@ -38,41 +71,8 @@ const UserManagementPage = () => {
   useEffect(() => {
     if (loading || !isAuthenticated || !isAdmin) return;
 
-    const loadProfiles = async () => {
-      setIsLoadingProfiles(true);
-      setErrorMessage('');
-
-      if (!isSupabaseConfigured) {
-        setProfiles([
-          {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            created_at: user.createdAt,
-          },
-        ]);
-        setIsLoadingProfiles(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id,email,name,role,created_at')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        setErrorMessage(error.message);
-        setProfiles([]);
-      } else {
-        setProfiles(data || []);
-      }
-
-      setIsLoadingProfiles(false);
-    };
-
     loadProfiles();
-  }, [isAdmin, isAuthenticated, loading, user]);
+  }, [isAdmin, isAuthenticated, loadProfiles, loading]);
 
   const handleRoleChange = async (profileId, nextRole) => {
     if (profileId === user.id) {
@@ -150,8 +150,8 @@ const UserManagementPage = () => {
               </p>
             </div>
 
-            <div className="rounded-xl border border-[hsl(43_65%_52%_/_0.25)] bg-[hsl(43_65%_52%_/_0.08)] p-4">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 rounded-xl border border-[hsl(43_65%_52%_/_0.25)] bg-[hsl(43_65%_52%_/_0.08)] p-4">
+              <div className="flex flex-1 items-center gap-3">
                 <ShieldCheck size={22} className="text-[hsl(43_65%_52%)]" />
                 <div>
                   <p className="text-xs font-bold uppercase text-gray-500">
@@ -160,6 +160,16 @@ const UserManagementPage = () => {
                   <p className="text-sm font-black text-white">{profiles.length} usuarios</p>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={loadProfiles}
+                disabled={isLoadingProfiles}
+                className="rounded-lg border border-white/10 bg-black/20 p-2 text-[hsl(43_65%_52%)] transition hover:border-[hsl(43_65%_52%_/_0.65)] disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Actualizar usuarios"
+                title="Actualizar usuarios"
+              >
+                <RefreshCw size={18} className={isLoadingProfiles ? 'animate-spin' : ''} />
+              </button>
             </div>
           </section>
 
