@@ -824,16 +824,6 @@ const EighteenZeroAdminPage = () => {
                   </p>
                 </div>
 
-                <label className="mt-5 block space-y-2">
-                  <span className="text-xs font-black uppercase text-white/50">Texto del jugador</span>
-                  <textarea
-                    value={form.description}
-                    onChange={(event) => updateField('description', event.target.value)}
-                    rows={4}
-                    className="w-full rounded-[8px] border border-white/10 bg-black px-3 py-3 font-semibold leading-relaxed outline-none focus:border-[#d7b23f]"
-                  />
-                </label>
-
                 <div className="mt-6">
                   <h3 className="mb-4 text-2xl font-black">Estadísticas</h3>
                   <div className="grid gap-4 md:grid-cols-2">
