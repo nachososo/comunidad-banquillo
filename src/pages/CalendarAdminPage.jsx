@@ -1,12 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, Navigate } from 'react-router-dom';
-import { ArrowLeft, CalendarDays, CheckCircle2, Clock, Database, Eye, MapPin, RefreshCw, Save, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, CalendarDays, CheckCircle2, Clock, Database, Eye, MapPin, Plus, RefreshCw, Save, ShieldCheck, Trash2 } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { useAuth } from '@/auth/AuthContext.jsx';
 import { matches as staticMatches } from '@/data/data.js';
 import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient.js';
+import {
+  createStatsSeason,
+  deleteStatsSeason,
+  loadStatsCaptureSettings,
+  loadStatsSeasons,
+} from '@/lib/statsCaptureRepository.js';
 
 const teamOptions = [
   { value: 'masculine', label: 'Masculino' },
@@ -67,6 +73,7 @@ const localMatches = staticMatches.map((match) => {
     created_at: null,
   };
 });
+const localSeasons = Array.from(new Set(localMatches.map((match) => match.season).filter(Boolean))).sort();
 
 const normalizeMatch = (match) => ({
   id: match.id,
@@ -121,15 +128,25 @@ const CalendarAdminPage = () => {
   const [usingLocalReference, setUsingLocalReference] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [seasons, setSeasons] = useState(localSeasons);
+  const [seasonFilter, setSeasonFilter] = useState('all');
+  const [newSeason, setNewSeason] = useState('');
+  const [activeStatsSeason, setActiveStatsSeason] = useState('2025-2026');
+  const [savingSeason, setSavingSeason] = useState(false);
+
+  const filteredMatches = useMemo(
+    () => seasonFilter === 'all' ? matches : matches.filter((match) => match.season === seasonFilter),
+    [matches, seasonFilter],
+  );
 
   const sortedMatches = useMemo(
     () =>
-      [...matches].sort((a, b) => {
+      [...filteredMatches].sort((a, b) => {
         const dateOrder = String(b.match_date || '').localeCompare(String(a.match_date || ''));
         if (dateOrder !== 0) return dateOrder;
         return String(b.match_time || '').localeCompare(String(a.match_time || ''));
       }),
-    [matches],
+    [filteredMatches],
   );
 
   const seasonGroups = useMemo(() => {
@@ -154,9 +171,9 @@ const CalendarAdminPage = () => {
       total: matches.length,
       finished: matches.filter((match) => match.status === 'finished').length,
       scheduled: matches.filter((match) => match.status === 'scheduled').length,
-      seasons: new Set(matches.map((match) => match.season)).size,
+      seasons: seasons.length,
     }),
-    [matches],
+    [matches, seasons],
   );
 
   const loadMatches = async () => {
@@ -167,16 +184,25 @@ const CalendarAdminPage = () => {
 
     if (!isSupabaseConfigured) {
       setMatches(localMatches);
+      setSeasons(localSeasons);
       setUsingLocalReference(true);
       setIsLoadingMatches(false);
       return;
     }
 
-    const { data, error } = await supabase
-      .from('matches')
-      .select('id,team,season,phase,match_date,match_time,rival,venue,court,our_score,rival_score,status,created_at')
-      .order('match_date', { ascending: false })
-      .order('match_time', { ascending: false });
+    const [matchesResponse, seasonOptions, settings] = await Promise.all([
+      supabase
+        .from('matches')
+        .select('id,team,season,phase,match_date,match_time,rival,venue,court,our_score,rival_score,status,created_at')
+        .order('match_date', { ascending: false })
+        .order('match_time', { ascending: false }),
+      loadStatsSeasons(localSeasons),
+      loadStatsCaptureSettings(),
+    ]);
+
+    const { data, error } = matchesResponse;
+    setSeasons(seasonOptions);
+    setActiveStatsSeason(settings.activeSeason);
 
     if (error) {
       setErrorMessage(`No he podido leer la tabla matches: ${error.message}`);
@@ -194,7 +220,69 @@ const CalendarAdminPage = () => {
     loadMatches();
   }, [isAdmin, isAuthenticated, loading]);
 
-  const resetForm = () => setForm(emptyForm);
+  const resetForm = () => setForm({
+    ...emptyForm,
+    season: seasonFilter === 'all' ? activeStatsSeason : seasonFilter,
+  });
+
+  const addSeason = async () => {
+    const normalizedSeason = newSeason.trim().replace('/', '-');
+    const match = normalizedSeason.match(/^(\d{4})-(\d{4})$/);
+    if (!match || Number(match[2]) !== Number(match[1]) + 1) {
+      setErrorMessage('Usa el formato 2026-2027 y asegúrate de que sean años consecutivos.');
+      return;
+    }
+    if (seasons.includes(normalizedSeason)) {
+      setErrorMessage('Esa temporada ya existe.');
+      return;
+    }
+
+    setSavingSeason(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+    try {
+      const savedSeason = await createStatsSeason({ season: normalizedSeason, userId: user?.id });
+      setSeasons((current) => [...current, savedSeason].sort());
+      setForm((current) => ({ ...current, season: savedSeason }));
+      setNewSeason('');
+      setSuccessMessage(`Temporada ${savedSeason.replace('-', '/')} añadida.`);
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setSavingSeason(false);
+    }
+  };
+
+  const removeSeason = async (season) => {
+    if (season === activeStatsSeason) {
+      setErrorMessage('No puedes borrar la temporada activa de la App de estadísticas. Activa otra primero.');
+      return;
+    }
+    if (matches.some((match) => match.season === season)) {
+      setErrorMessage('No puedes borrar una temporada que todavía tiene partidos. Mueve primero esos partidos a otra temporada.');
+      return;
+    }
+    if (seasons.length <= 1) {
+      setErrorMessage('Debe existir al menos una temporada.');
+      return;
+    }
+
+    setSavingSeason(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+    try {
+      await deleteStatsSeason(season);
+      const nextSeasons = seasons.filter((candidate) => candidate !== season);
+      setSeasons(nextSeasons);
+      if (seasonFilter === season) setSeasonFilter('all');
+      if (form.season === season) setForm((current) => ({ ...current, season: nextSeasons[0] }));
+      setSuccessMessage(`Temporada ${season.replace('-', '/')} eliminada.`);
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setSavingSeason(false);
+    }
+  };
 
   const handleEdit = (match) => {
     setForm({
@@ -409,7 +497,50 @@ const CalendarAdminPage = () => {
           ))}
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
+        <section className="mb-6 rounded-xl border border-[hsl(43_65%_52%_/_0.22)] bg-[#101010] p-5">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-[hsl(43_65%_52%)]">Configuración</p>
+              <h2 className="mt-1 text-xl font-black">Gestionar temporadas</h2>
+              <p className="mt-1 text-sm text-gray-500">Añade temporadas para el calendario y la App de estadísticas.</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {seasons.map((season) => (
+                  <span key={season} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-3 py-2 text-xs font-black text-gray-200">
+                    {season.replace('-', '/')}
+                    {season === activeStatsSeason && <span className="text-[10px] uppercase text-emerald-300">Activa</span>}
+                    <button
+                      type="button"
+                      disabled={savingSeason}
+                      onClick={() => removeSeason(season)}
+                      className="text-gray-500 transition hover:text-red-300 disabled:opacity-40"
+                      aria-label={`Eliminar temporada ${season}`}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="flex w-full flex-col gap-2 sm:flex-row xl:w-auto">
+              <input
+                value={newSeason}
+                onChange={(event) => setNewSeason(event.target.value)}
+                placeholder="2026-2027"
+                className="min-h-11 rounded-lg border border-white/10 bg-black px-4 text-sm font-bold text-white outline-none focus:border-[hsl(43_65%_52%)] sm:w-52"
+              />
+              <button
+                type="button"
+                disabled={savingSeason}
+                onClick={addSeason}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[hsl(43_65%_52%)] px-4 text-sm font-black text-black disabled:opacity-50"
+              >
+                <Plus size={16} /> Añadir temporada
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <div className="space-y-6">
           <section className="rounded-xl border border-[hsl(43_65%_52%_/_0.22)] bg-[#101010] p-5">
             <div className="mb-5 flex items-center gap-3">
               <div className="rounded-lg border border-[hsl(43_65%_52%_/_0.35)] bg-[hsl(43_65%_52%_/_0.12)] p-2 text-[hsl(43_65%_52%)]">
@@ -422,76 +553,18 @@ const CalendarAdminPage = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="space-y-2 text-sm font-bold text-gray-300">
-                  Equipo
-                  <select value={form.team} onChange={(event) => setForm({ ...form, team: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]">
-                    {teamOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="space-y-2 text-sm font-bold text-gray-300">
-                  Estado
-                  <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]">
-                    {statusOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="space-y-2 text-sm font-bold text-gray-300">
-                  Temporada
-                  <input value={form.season} onChange={(event) => setForm({ ...form, season: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" />
-                </label>
-                <label className="space-y-2 text-sm font-bold text-gray-300">
-                  Fase
-                  <input value={form.phase} onChange={(event) => setForm({ ...form, phase: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" />
-                </label>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="space-y-2 text-sm font-bold text-gray-300">
-                  Fecha
-                  <input type="date" value={form.match_date} onChange={(event) => setForm({ ...form, match_date: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" />
-                </label>
-                <label className="space-y-2 text-sm font-bold text-gray-300">
-                  Hora
-                  <input type="time" value={form.match_time} onChange={(event) => setForm({ ...form, match_time: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" />
-                </label>
-              </div>
-
-              <label className="block space-y-2 text-sm font-bold text-gray-300">
-                Rival
-                <input value={form.rival} onChange={(event) => setForm({ ...form, rival: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" />
-              </label>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="space-y-2 text-sm font-bold text-gray-300">
-                  Lugar
-                  <input value={form.venue} onChange={(event) => setForm({ ...form, venue: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" />
-                </label>
-                <label className="space-y-2 text-sm font-bold text-gray-300">
-                  Pista
-                  <input value={form.court} onChange={(event) => setForm({ ...form, court: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" />
-                </label>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="space-y-2 text-sm font-bold text-gray-300">
-                  Puntos CDB
-                  <input type="number" value={form.our_score} onChange={(event) => setForm({ ...form, our_score: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" />
-                </label>
-                <label className="space-y-2 text-sm font-bold text-gray-300">
-                  Puntos rival
-                  <input type="number" value={form.rival_score} onChange={(event) => setForm({ ...form, rival_score: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" />
-                </label>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <label className="space-y-2 text-sm font-bold text-gray-300">Equipo<select value={form.team} onChange={(event) => setForm({ ...form, team: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]">{teamOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                <label className="space-y-2 text-sm font-bold text-gray-300">Estado<select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]">{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                <label className="space-y-2 text-sm font-bold text-gray-300">Temporada<select value={form.season} onChange={(event) => setForm({ ...form, season: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]">{seasons.map((season) => <option key={season} value={season}>{season.replace('-', '/')}</option>)}</select></label>
+                <label className="space-y-2 text-sm font-bold text-gray-300">Fase<input value={form.phase} onChange={(event) => setForm({ ...form, phase: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" /></label>
+                <label className="space-y-2 text-sm font-bold text-gray-300">Fecha<input type="date" value={form.match_date} onChange={(event) => setForm({ ...form, match_date: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" /></label>
+                <label className="space-y-2 text-sm font-bold text-gray-300">Hora<input type="time" value={form.match_time} onChange={(event) => setForm({ ...form, match_time: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" /></label>
+                <label className="space-y-2 text-sm font-bold text-gray-300 md:col-span-2">Rival<input value={form.rival} onChange={(event) => setForm({ ...form, rival: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" /></label>
+                <label className="space-y-2 text-sm font-bold text-gray-300">Lugar<input value={form.venue} onChange={(event) => setForm({ ...form, venue: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" /></label>
+                <label className="space-y-2 text-sm font-bold text-gray-300">Pista<input value={form.court} onChange={(event) => setForm({ ...form, court: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" /></label>
+                <label className="space-y-2 text-sm font-bold text-gray-300">Puntos CDB<input type="number" value={form.our_score} onChange={(event) => setForm({ ...form, our_score: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" /></label>
+                <label className="space-y-2 text-sm font-bold text-gray-300">Puntos rival<input type="number" value={form.rival_score} onChange={(event) => setForm({ ...form, rival_score: event.target.value })} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-white outline-none focus:border-[hsl(43_65%_52%)]" /></label>
               </div>
 
               <div className="flex flex-wrap gap-3 pt-2">
@@ -512,10 +585,15 @@ const CalendarAdminPage = () => {
                 <h2 className="text-xl font-black">Partidos creados</h2>
                 <p className="text-sm text-gray-500">Agrupados por equipo, temporada y fase.</p>
               </div>
-              <Link to="/calendario" className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-3 text-sm font-bold text-gray-300 transition-smooth hover:border-[hsl(43_65%_52%_/_0.45)] hover:text-[hsl(43_65%_52%)]">
-                <Eye size={16} />
-                Ver público
-              </Link>
+              <div className="flex flex-wrap gap-2">
+                <select value={seasonFilter} onChange={(event) => setSeasonFilter(event.target.value)} className="rounded-lg border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white outline-none focus:border-[hsl(43_65%_52%)]">
+                  <option value="all">Todas las temporadas</option>
+                  {seasons.map((season) => <option key={season} value={season}>{season.replace('-', '/')}</option>)}
+                </select>
+                <Link to="/calendario" className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-3 text-sm font-bold text-gray-300 transition-smooth hover:border-[hsl(43_65%_52%_/_0.45)] hover:text-[hsl(43_65%_52%)]">
+                  <Eye size={16} /> Ver público
+                </Link>
+              </div>
             </div>
 
             {isLoadingMatches ? (
@@ -563,7 +641,7 @@ const CalendarAdminPage = () => {
                   </div>
                 ))}
 
-                {!matches.length && <div className="rounded-lg border border-white/10 bg-black/30 p-6 text-gray-400">Todavía no hay partidos creados.</div>}
+                {!filteredMatches.length && <div className="rounded-lg border border-white/10 bg-black/30 p-6 text-gray-400">No hay partidos en la temporada seleccionada.</div>}
               </div>
             )}
           </section>

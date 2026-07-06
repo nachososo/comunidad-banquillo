@@ -11,15 +11,15 @@ import {
   DEFAULT_STATS_SEASON,
   loadStatsCaptureSettings,
   loadStatsPermissions,
+  loadStatsSeasons,
   loadStatsSessions,
   saveStatsCaptureSettings,
   saveStatsPermission,
 } from '@/lib/statsCaptureRepository.js';
 
 const getSeasonOptions = () => {
-  const currentYear = new Date().getFullYear();
   const seasons = new Set(matches.map((match) => match.season).filter(Boolean));
-  [currentYear - 1, currentYear, currentYear + 1].forEach((year) => seasons.add(`${year}-${year + 1}`));
+  seasons.add(DEFAULT_STATS_SEASON);
   return Array.from(seasons).sort();
 };
 
@@ -33,6 +33,7 @@ const StatsCaptureAdminPage = () => {
   const [activeSeason, setActiveSeason] = useState(DEFAULT_STATS_SEASON);
   const [savedSeason, setSavedSeason] = useState(DEFAULT_STATS_SEASON);
   const [savingSeason, setSavingSeason] = useState(false);
+  const [seasons, setSeasons] = useState(getSeasonOptions);
   const [notice, setNotice] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -52,9 +53,13 @@ const StatsCaptureAdminPage = () => {
     setNotice('');
     setErrorMessage('');
 
-    const settingsData = await loadStatsCaptureSettings();
+    const [settingsData, seasonData] = await Promise.all([
+      loadStatsCaptureSettings(),
+      loadStatsSeasons(getSeasonOptions()),
+    ]);
     setActiveSeason(settingsData.activeSeason);
     setSavedSeason(settingsData.activeSeason);
+    setSeasons(Array.from(new Set([...seasonData, settingsData.activeSeason])).sort());
 
     if (!isSupabaseConfigured) {
       setProfiles([user]);
@@ -187,7 +192,7 @@ const StatsCaptureAdminPage = () => {
                   onChange={(event) => setActiveSeason(event.target.value)}
                   className="min-h-12 rounded-lg border border-white/15 bg-black/40 px-4 text-sm font-black text-white outline-none focus:border-[hsl(43_65%_52%)]"
                 >
-                  {getSeasonOptions().map((season) => <option key={season} value={season}>Temporada {season.replace('-', '/')}</option>)}
+                  {seasons.map((season) => <option key={season} value={season}>Temporada {season.replace('-', '/')}</option>)}
                 </select>
                 <button
                   type="button"

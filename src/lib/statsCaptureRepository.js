@@ -53,6 +53,44 @@ export const saveStatsCaptureSettings = async ({ activeSeason, userId = null }) 
   return { activeSeason: data.active_season, remote: true };
 };
 
+const normalizeStatsSeason = (season) => String(season || '').trim().replace('/', '-');
+
+export const loadStatsSeasons = async (fallbackSeasons = []) => {
+  const fallback = Array.from(new Set([DEFAULT_STATS_SEASON, ...fallbackSeasons].map(normalizeStatsSeason).filter(Boolean))).sort();
+  if (!isSupabaseConfigured) return fallback;
+
+  const { data, error } = await supabase
+    .from('stats_seasons')
+    .select('id')
+    .order('id', { ascending: true });
+
+  if (error) return fallback;
+  return Array.from(new Set([...fallback, ...(data || []).map((season) => season.id)])).sort();
+};
+
+export const createStatsSeason = async ({ season, userId = null }) => {
+  const normalizedSeason = normalizeStatsSeason(season);
+  if (!isSupabaseConfigured) return normalizedSeason;
+
+  const { data, error } = await supabase
+    .from('stats_seasons')
+    .insert({ id: normalizedSeason, created_by: userId })
+    .select('id')
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data.id;
+};
+
+export const deleteStatsSeason = async (season) => {
+  const normalizedSeason = normalizeStatsSeason(season);
+  if (!isSupabaseConfigured) return normalizedSeason;
+
+  const { error } = await supabase.from('stats_seasons').delete().eq('id', normalizedSeason);
+  if (error) throw new Error(error.message);
+  return normalizedSeason;
+};
+
 export const hasStatsCaptureAccess = async (user, isAdmin = false) => {
   if (isAdmin) return true;
   if (!isSupabaseConfigured || !user?.id) return false;
