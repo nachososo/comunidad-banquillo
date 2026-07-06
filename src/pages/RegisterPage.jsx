@@ -9,7 +9,7 @@ import { useAuth } from '@/auth/AuthContext.jsx';
 const RegisterPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { authMode, loading: authLoading, signUp } = useAuth();
+  const { loading: authLoading, signUp } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -59,10 +59,8 @@ const RegisterPage = () => {
             </p>
             <div className="mt-5 rounded-xl border border-[hsl(43_65%_52%_/_0.18)] bg-[#111]/90 p-4">
               <p className="text-sm leading-relaxed text-gray-400">
-                Modo actual: <strong className="text-white">{authMode === 'supabase' ? 'Supabase' : 'local'}</strong>.
-                {authMode === 'supabase'
-                  ? ' Si Supabase pide confirmar el correo, tendrás que hacerlo antes de poder entrar.'
-                  : ' En modo local se crea una sesión de prueba en este navegador.'}
+                Al registrarte podrás guardar tus equipos y acceder a las funciones exclusivas de la comunidad. Si se
+                solicita confirmar el correo, revisa tu bandeja de entrada antes de iniciar sesión.
               </p>
             </div>
           </section>

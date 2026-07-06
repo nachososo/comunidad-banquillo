@@ -9,7 +9,7 @@ import { useAuth } from '@/auth/AuthContext.jsx';
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { authMode, loading: authLoading, signIn } = useAuth();
+  const { loading: authLoading, signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
@@ -45,17 +45,15 @@ const LoginPage = () => {
             <span className="text-sm font-bold uppercase text-[hsl(43_65%_52%)]">Acceso global</span>
             <h1 className="mt-2 text-white">Cuenta Banquiller</h1>
             <p className="mt-4 text-base leading-relaxed text-gray-300">
-              Este acceso ya está preparado para conectarse a Supabase. Mientras no estén puestas las claves, la sesión
-              se guarda solo en este navegador para que podamos seguir probando la web.
+              Accede a tu cuenta para gestionar tu equipo Banquiger, guardar tu progreso y utilizar las funciones
+              reservadas para usuarios registrados.
             </p>
             <div className="mt-5 rounded-xl border border-[hsl(43_65%_52%_/_0.18)] bg-[#111]/90 p-4">
               <div className="flex gap-3">
                 <ShieldCheck className="mt-0.5 shrink-0 text-[hsl(43_65%_52%)]" size={20} />
                 <p className="text-sm leading-relaxed text-gray-400">
-                  Modo actual: <strong className="text-white">{authMode === 'supabase' ? 'Supabase' : 'local'}</strong>.
-                  {authMode === 'local'
-                    ? ' Para probar el panel usa admin@banquillo.local. Con Supabase, el rol de administrador se asigna desde la base de datos.'
-                    : ' Entra con una cuenta ya creada. Si todavía no tienes cuenta, puedes registrarte desde el enlace del formulario.'}
+                  Tu cuenta mantiene tus datos y equipos vinculados a tu perfil. Si todavía no tienes una, puedes
+                  crearla desde el formulario.
                 </p>
               </div>
             </div>
