@@ -37,6 +37,8 @@ const EighteenZeroPage = () => {
   const [isLoadingRanking, setIsLoadingRanking] = useState(false);
   const [rankingNotice, setRankingNotice] = useState('');
   const [rankingError, setRankingError] = useState('');
+  const [refreshToken, setRefreshToken] = useState(0);
+  const [hasUsedDraftRefresh, setHasUsedDraftRefresh] = useState(false);
 
   const refreshRanking = useCallback(async () => {
     if (!isAuthenticated) {
@@ -94,7 +96,7 @@ const EighteenZeroPage = () => {
         selectedPersonIds: selectedPlayers.map((player) => player.personId || player.id),
       });
     },
-    [currentPosition, selectedKey, players],
+    [currentPosition, selectedKey, players, refreshToken],
   );
 
   const startDraft = () => {
@@ -106,6 +108,8 @@ const EighteenZeroPage = () => {
     setError('');
     setRankingNotice('');
     setRankingError('');
+    setRefreshToken(0);
+    setHasUsedDraftRefresh(false);
   };
 
   const handleChoosePosition = (position) => {
@@ -134,6 +138,13 @@ const EighteenZeroPage = () => {
     }
 
     setCurrentPosition(null);
+  };
+
+  const handleRefreshOptions = () => {
+    if (!currentPosition || hasUsedDraftRefresh) return;
+    setRefreshToken((current) => current + 1);
+    setHasUsedDraftRefresh(true);
+    setError('');
   };
 
   const handleSelectCoach = async (coach) => {
@@ -187,7 +198,9 @@ const EighteenZeroPage = () => {
                 roundIndex={roundIndex}
                 selectedPlayers={selectedPlayers}
                 totalRounds={DRAFT_POSITIONS.length}
+                hasUsedDraftRefresh={hasUsedDraftRefresh}
                 onChoosePosition={handleChoosePosition}
+                onRefreshOptions={handleRefreshOptions}
                 onSelect={handleSelect}
               />
             )}

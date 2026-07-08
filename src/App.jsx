@@ -20,6 +20,7 @@ import AccountPage from './pages/AccountPage';
 import ControlPanelPage from './pages/ControlPanelPage';
 import ControlPanelModulePage from './pages/ControlPanelModulePage';
 import UserManagementPage from './pages/UserManagementPage';
+import AnalyticsAdminPage from './pages/AnalyticsAdminPage';
 import PlayersAdminPage from './pages/PlayersAdminPage';
 import ContentAdminPage from './pages/ContentAdminPage';
 import CalendarAdminPage from './pages/CalendarAdminPage';
@@ -31,12 +32,14 @@ import BanquigerAdminPage from './pages/BanquigerAdminPage';
 import ContactAdminPage from './pages/ContactAdminPage';
 import NewsAdminPage from './pages/NewsAdminPage';
 import { AuthProvider } from './auth/AuthContext.jsx';
+import AnalyticsTracker from './components/AnalyticsTracker.jsx';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
         <ScrollToTop />
+        <AnalyticsTracker />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/plantilla-masculina" element={<PlantillaMasculinaPage />} />
@@ -59,6 +62,7 @@ function App() {
           <Route path="/panel-control" element={<ControlPanelPage />} />
           <Route path="/panel-control/contenido" element={<ContentAdminPage />} />
           <Route path="/panel-control/usuarios" element={<UserManagementPage />} />
+          <Route path="/panel-control/analiticas" element={<AnalyticsAdminPage />} />
           <Route path="/panel-control/plantillas" element={<PlayersAdminPage />} />
           <Route path="/panel-control/calendario" element={<CalendarAdminPage />} />
           <Route path="/panel-control/noticias" element={<NewsAdminPage />} />

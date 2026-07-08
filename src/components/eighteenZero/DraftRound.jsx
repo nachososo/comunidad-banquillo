@@ -56,12 +56,14 @@ const SelectedTeamInsights = ({ selectedPlayers }) => {
 const DraftRound = ({
   availablePositions,
   error,
+  hasUsedDraftRefresh,
   options,
   position,
   roundIndex,
   selectedPlayers,
   totalRounds,
   onChoosePosition,
+  onRefreshOptions,
   onSelect,
 }) => {
   const isChoosingPosition = !position;
@@ -85,6 +87,18 @@ const DraftRound = ({
                   : `Solo aparecen jugadores cuyo puesto principal es ${position}.`}
               </p>
             </div>
+            {!isChoosingPosition && (
+              <button
+                type="button"
+                onClick={onRefreshOptions}
+                disabled={hasUsedDraftRefresh}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[hsl(43_65%_52%_/_0.35)] bg-[hsl(43_65%_52%_/_0.08)] px-4 py-3 text-xs font-black uppercase text-[hsl(43_65%_62%)] transition hover:border-[hsl(43_65%_52%)] hover:bg-[hsl(43_65%_52%_/_0.15)] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-gray-500"
+                title={hasUsedDraftRefresh ? 'Ya has usado el refresh de esta partida' : 'Cambiar las opciones una vez por partida'}
+              >
+                <Shuffle size={15} />
+                {hasUsedDraftRefresh ? 'Refresh usado' : 'Usar refresh'}
+              </button>
+            )}
           </div>
 
           {isChoosingPosition && (
@@ -115,22 +129,30 @@ const DraftRound = ({
         {isChoosingPosition ? (
           <SelectedTeamInsights selectedPlayers={selectedPlayers} />
         ) : (
-          <div className="grid gap-4 md:grid-cols-3">
-            {options.map((player) => (
-              <motion.div
-                key={`${position}-${player.id}`}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25 }}
-              >
-                <PlayerCard player={player} onSelect={onSelect} />
-              </motion.div>
-            ))}
-            {options.length === 0 && (
-              <div className="rounded-lg border border-white/10 bg-[#111]/90 p-5 text-sm font-bold text-gray-300 md:col-span-3">
-                No quedan jugadores disponibles para esta posición.
-              </div>
-            )}
+          <div className="space-y-3">
+            <div className="rounded-lg border border-white/10 bg-[#111]/75 px-4 py-3 text-sm font-bold text-gray-300">
+              Tienes un único refresh por partida. Puedes usarlo ahora o guardarlo para otra posición.
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {options.map((player) => (
+                <motion.div
+                  key={`${position}-${player.id}`}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <PlayerCard player={player} onSelect={onSelect} />
+                </motion.div>
+              ))}
+              {options.length === 0 && (
+                <div className="rounded-lg border border-white/10 bg-[#111]/90 p-5 text-sm font-bold text-gray-300 md:col-span-3">
+                  No quedan jugadores disponibles para esta posición.
+                </div>
+              )}
+            </div>
+            <div className="text-xs font-bold uppercase text-gray-500">
+              {hasUsedDraftRefresh ? 'Refresh gastado en esta partida.' : 'Refresh disponible.'}
+            </div>
           </div>
         )}
       </div>

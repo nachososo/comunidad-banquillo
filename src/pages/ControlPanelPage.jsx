@@ -22,7 +22,7 @@ const storageGroups = [
     description: 'Cambios visibles para todos los usuarios y dispositivos.',
     label: 'Supabase',
     icon: Cloud,
-    modules: ['Usuarios', 'Contenido', 'Noticias', 'Plantillas', 'Calendario', 'Estadísticas', 'App de estadísticas', 'Banquiger', '18-0', 'Mensajes'],
+    modules: ['Usuarios', 'Contenido', 'Noticias', 'Plantillas', 'Calendario', 'Estadísticas', 'App de estadísticas', 'Banquiger', '18-0', 'Mensajes', 'Analíticas'],
   },
 ];
 

@@ -89,6 +89,12 @@ export const controlPanelSchema = [
     purpose: 'Solicitudes recibidas desde el formulario de contacto.',
     fields: ['id', 'name', 'email', 'reason', 'status', 'created_at'],
   },
+  {
+    name: 'web_analytics_events',
+    title: 'Analíticas web',
+    purpose: 'Visitas anónimas, páginas vistas, dispositivo, procedencia y fecha.',
+    fields: ['id', 'session_id', 'path', 'title', 'referrer', 'device', 'language', 'screen_width', 'created_at'],
+  },
 ];
 
 export const controlPanelModules = [
@@ -207,6 +213,19 @@ export const controlPanelModules = [
       'Consultar mensajes recibidos.',
       'Marcar solicitudes como leídas o pendientes.',
       'Responder por correo y limpiar la bandeja.',
+    ],
+  },
+  {
+    id: 'analiticas',
+    title: 'Analíticas',
+    description: 'Medir visitas, páginas más vistas, dispositivos y procedencia del tráfico.',
+    status: 'Activo',
+    href: '/panel-control/analiticas',
+    tables: ['web_analytics_events'],
+    tasks: [
+      'Registrar visitas anónimas desde la web pública.',
+      'Consultar evolución diaria, páginas top y dispositivos.',
+      'Mantener la medición propia en Supabase sin cookies de terceros.',
     ],
   },
   {
