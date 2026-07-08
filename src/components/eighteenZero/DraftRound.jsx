@@ -93,10 +93,10 @@ const DraftRound = ({
                 onClick={onRefreshOptions}
                 disabled={hasUsedDraftRefresh}
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-[hsl(43_65%_52%_/_0.35)] bg-[hsl(43_65%_52%_/_0.08)] px-4 py-3 text-xs font-black uppercase text-[hsl(43_65%_62%)] transition hover:border-[hsl(43_65%_52%)] hover:bg-[hsl(43_65%_52%_/_0.15)] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-gray-500"
-                title={hasUsedDraftRefresh ? 'Ya has usado el refresh de esta partida' : 'Cambiar las opciones una vez por partida'}
+                title={hasUsedDraftRefresh ? 'Ya has usado el reroll de esta partida' : 'Cambiar las opciones una vez por partida'}
               >
                 <Shuffle size={15} />
-                {hasUsedDraftRefresh ? '0x refresh' : '1x refresh'}
+                {hasUsedDraftRefresh ? '0x reroll' : '1x reroll'}
               </button>
             )}
           </div>
@@ -131,7 +131,7 @@ const DraftRound = ({
         ) : (
           <div className="space-y-3">
             <div className="rounded-lg border border-white/10 bg-[#111]/75 px-4 py-3 text-sm font-bold text-gray-300">
-              Tienes un único refresh por partida. Puedes usarlo ahora o guardarlo para otra posición.
+              Tienes un único reroll por partida. Puedes usarlo ahora o guardarlo para otra posición.
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               {options.map((player) => (
@@ -151,7 +151,7 @@ const DraftRound = ({
               )}
             </div>
             <div className="text-xs font-bold uppercase text-gray-500">
-              {hasUsedDraftRefresh ? '0x refresh disponible.' : '1x refresh disponible.'}
+              {hasUsedDraftRefresh ? '0x reroll disponible.' : '1x reroll disponible.'}
             </div>
           </div>
         )}
