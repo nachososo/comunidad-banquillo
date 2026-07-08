@@ -96,7 +96,7 @@ const DraftRound = ({
                 title={hasUsedDraftRefresh ? 'Ya has usado el refresh de esta partida' : 'Cambiar las opciones una vez por partida'}
               >
                 <Shuffle size={15} />
-                {hasUsedDraftRefresh ? 'Refresh usado' : 'Usar refresh'}
+                {hasUsedDraftRefresh ? '0x refresh' : '1x refresh'}
               </button>
             )}
           </div>
@@ -151,7 +151,7 @@ const DraftRound = ({
               )}
             </div>
             <div className="text-xs font-bold uppercase text-gray-500">
-              {hasUsedDraftRefresh ? 'Refresh gastado en esta partida.' : 'Refresh disponible.'}
+              {hasUsedDraftRefresh ? '0x refresh disponible.' : '1x refresh disponible.'}
             </div>
           </div>
         )}
