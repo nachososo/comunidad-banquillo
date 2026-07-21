@@ -7,6 +7,7 @@ import DraftRound from '@/components/eighteenZero/DraftRound.jsx';
 import ResultScreen from '@/components/eighteenZero/ResultScreen.jsx';
 import CoachSelection from '@/components/eighteenZero/CoachSelection.jsx';
 import Ranking from '@/components/eighteenZero/Ranking.jsx';
+import GameHistory from '@/components/eighteenZero/GameHistory.jsx';
 import { useAuth } from '@/auth/AuthContext.jsx';
 import { DRAFT_POSITIONS } from '@/data/cdbPlayers.js';
 import { buildEventEffect, getRandomSeasonEvents } from '@/data/cdbEvents.js';
@@ -19,7 +20,7 @@ import {
   getStoredEighteenZeroPlayers,
 } from '@/utils/eighteenZeroStorage.js';
 import { loadEighteenZeroBundle } from '@/lib/gameDataRepository.js';
-import { loadEighteenZeroRanking, submitEighteenZeroScore } from '@/lib/eighteenZeroRankingRepository.js';
+import { loadEighteenZeroGameHistory, loadEighteenZeroRanking, submitEighteenZeroScore } from '@/lib/eighteenZeroRankingRepository.js';
 
 const EighteenZeroPage = () => {
   const { isAuthenticated, loading: authLoading, user } = useAuth();
@@ -37,6 +38,8 @@ const EighteenZeroPage = () => {
   const [isLoadingRanking, setIsLoadingRanking] = useState(false);
   const [rankingNotice, setRankingNotice] = useState('');
   const [rankingError, setRankingError] = useState('');
+  const [gameHistory, setGameHistory] = useState([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
   const [hasUsedDraftRefresh, setHasUsedDraftRefresh] = useState(false);
 
@@ -57,6 +60,24 @@ const EighteenZeroPage = () => {
       setIsLoadingRanking(false);
     }
   }, [isAuthenticated]);
+
+  const refreshGameHistory = useCallback(async () => {
+    if (!isAuthenticated) {
+      setGameHistory([]);
+      setIsLoadingHistory(false);
+      return;
+    }
+
+    setIsLoadingHistory(true);
+    setRankingError('');
+    try {
+      setGameHistory(await loadEighteenZeroGameHistory({ isAuthenticated, userId: user?.id }));
+    } catch (loadError) {
+      setRankingError(loadError.message || 'No se ha podido cargar tu historial de partidas.');
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
     let active = true;
@@ -79,6 +100,10 @@ const EighteenZeroPage = () => {
   useEffect(() => {
     refreshRanking();
   }, [refreshRanking]);
+
+  useEffect(() => {
+    refreshGameHistory();
+  }, [refreshGameHistory]);
 
   const roundIndex = selectedPlayers.length;
   const selectedKey = selectedPlayers.map((player) => player.id).join('|');
@@ -166,9 +191,16 @@ const EighteenZeroPage = () => {
         user,
         score: finalResult.scores.totalScore,
         record: finalResult.recordInfo.record,
+        game: {
+          team: selectedPlayers,
+          coach,
+          result: finalResult,
+          usedReroll: hasUsedDraftRefresh,
+        },
       });
-      setRankingNotice('Puntuación guardada en el ranking.');
+      setRankingNotice('Puntuación y partida guardadas.');
       await refreshRanking();
+      await refreshGameHistory();
     } catch (saveError) {
       setRankingError(saveError.message || 'No se ha podido guardar la puntuación.');
     }
@@ -226,6 +258,11 @@ const EighteenZeroPage = () => {
                   isAuthenticated={isAuthenticated}
                   isAuthLoading={authLoading}
                   isLoading={isLoadingRanking}
+                />
+                <GameHistory
+                  games={gameHistory}
+                  isAuthenticated={isAuthenticated}
+                  isLoading={isLoadingHistory}
                 />
               </div>
             )}
