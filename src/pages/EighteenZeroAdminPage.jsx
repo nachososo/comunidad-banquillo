@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet';
 import { Link, Navigate } from 'react-router-dom';
 import {
   ArrowLeft,
+  BarChart3,
   CalendarClock,
   ClipboardList,
   Eye,
@@ -12,8 +13,11 @@ import {
   Save,
   ShieldCheck,
   SlidersHorizontal,
+  Sparkles,
   Tags,
+  Trophy,
   Trash2,
+  Users,
 } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
@@ -41,6 +45,7 @@ import {
   saveEighteenZeroSkills,
 } from '@/utils/eighteenZeroStorage.js';
 import { GAME_DATA_KEYS, loadEighteenZeroBundle, saveGameDocument } from '@/lib/gameDataRepository.js';
+import { loadEighteenZeroAnalytics } from '@/lib/eighteenZeroAnalyticsRepository.js';
 
 const statFields = [
   ['attack', 'Ataque'],
@@ -120,6 +125,24 @@ const clamp = (value, min, max) => {
   return Math.min(max, Math.max(min, number));
 };
 
+const emptyAnalytics = {
+  totalGames: 0,
+  uniqueUsers: 0,
+  averageScore: 0,
+  perfectSeasons: 0,
+  rerollUsageRate: 0,
+  bestGame: null,
+  topPlayers: [],
+  topCoaches: [],
+  recordBreakdown: [],
+  latestGames: [],
+};
+
+const formatShortDateTime = (value) => {
+  if (!value) return '';
+  return new Date(value).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+};
+
 const normalizeForm = (form) => {
   const name = form.name.trim();
   const season = form.season.trim() || '2025/26';
@@ -160,6 +183,9 @@ const EighteenZeroAdminPage = () => {
   const [coaches, setCoaches] = useState(() => getStoredEighteenZeroCoaches());
   const [selectedCoachId, setSelectedCoachId] = useState(() => coaches[0]?.id || '');
   const [coachForm, setCoachForm] = useState(() => coaches[0] || emptyCoach);
+  const [analytics, setAnalytics] = useState(emptyAnalytics);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState('');
 
   const selectedEventIndex = events.findIndex((item) => item.id === selectedEventId);
   const selectedEvent = selectedEventIndex >= 0 ? events[selectedEventIndex] : null;
@@ -216,6 +242,26 @@ const EighteenZeroAdminPage = () => {
   }, [loading, isAdmin]);
 
   const saveRemote = (key, payload) => void saveGameDocument(key, 'eighteen-zero', payload);
+
+  useEffect(() => {
+    if (loading || !isAdmin) return;
+    let active = true;
+    setAnalyticsLoading(true);
+    setAnalyticsError('');
+
+    loadEighteenZeroAnalytics()
+      .then((summary) => {
+        if (active) setAnalytics(summary);
+      })
+      .catch((error) => {
+        if (active) setAnalyticsError(error.message || 'No se han podido cargar las analíticas del 18-0.');
+      })
+      .finally(() => {
+        if (active) setAnalyticsLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [loading, isAdmin]);
 
   if (loading) {
     return (
@@ -607,6 +653,140 @@ const EighteenZeroAdminPage = () => {
                   <p className="mt-1 text-xs uppercase text-white/50">{authMode}</p>
                 </div>
               </div>
+            </section>
+
+            <section className="mb-8 rounded-[8px] border border-white/10 bg-[#101010]/90 p-5">
+              <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="flex items-center gap-2 text-xs font-black uppercase text-[#d7b23f]">
+                    <BarChart3 className="h-4 w-4" />
+                    Analíticas del juego
+                  </p>
+                  <h2 className="mt-1 text-3xl font-black">Termómetro del 18-0</h2>
+                  <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-white/55">
+                    Datos calculados desde las partidas guardadas: uso real, mejores resultados y picks más repetidos.
+                  </p>
+                </div>
+                {analyticsLoading && (
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-black uppercase text-white/50">
+                    Cargando datos...
+                  </span>
+                )}
+              </div>
+
+              {analyticsError ? (
+                <div className="rounded-[8px] border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100">
+                  {analyticsError}
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                    {[
+                      { label: 'Partidas', value: analytics.totalGames, icon: ClipboardList },
+                      { label: 'Usuarios', value: analytics.uniqueUsers, icon: Users },
+                      { label: 'Media', value: analytics.averageScore, icon: BarChart3 },
+                      { label: '18-0', value: analytics.perfectSeasons, icon: Trophy },
+                      { label: 'Reroll', value: `${analytics.rerollUsageRate}%`, icon: Sparkles },
+                    ].map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <article key={item.label} className="rounded-[8px] border border-white/10 bg-black/35 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-xs font-black uppercase text-white/45">{item.label}</p>
+                            <Icon className="h-4 w-4 text-[#d7b23f]" />
+                          </div>
+                          <p className="mt-3 text-3xl font-black text-white">{item.value}</p>
+                        </article>
+                      );
+                    })}
+                  </div>
+
+                  <div className="grid gap-4 xl:grid-cols-[1fr_1fr_1.25fr]">
+                    <article className="rounded-[8px] border border-[#d7b23f]/20 bg-[#d7b23f]/8 p-4">
+                      <p className="text-xs font-black uppercase text-[#d7b23f]">Mejor partida</p>
+                      {analytics.bestGame ? (
+                        <>
+                          <div className="mt-3 flex items-end justify-between gap-3">
+                            <div>
+                              <h3 className="text-xl font-black text-white">{analytics.bestGame.displayName}</h3>
+                              <p className="mt-1 text-xs font-bold text-white/45">
+                                {analytics.bestGame.record} · {formatShortDateTime(analytics.bestGame.createdAt)}
+                              </p>
+                            </div>
+                            <p className="text-4xl font-black text-[#d7b23f]">{analytics.bestGame.score}</p>
+                          </div>
+                          <p className="mt-3 truncate text-sm font-semibold text-white/55">
+                            {analytics.bestGame.lineup.map((player) => player.name).join(' · ')}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="mt-3 text-sm font-semibold text-white/45">Todavía no hay partidas guardadas.</p>
+                      )}
+                    </article>
+
+                    <article className="rounded-[8px] border border-white/10 bg-black/30 p-4">
+                      <p className="text-xs font-black uppercase text-[#d7b23f]">Récords conseguidos</p>
+                      <div className="mt-4 space-y-3">
+                        {analytics.recordBreakdown.length ? analytics.recordBreakdown.map((record) => (
+                          <div key={record.id} className="flex items-center justify-between gap-3 text-sm">
+                            <span className="font-black text-white">{record.name}</span>
+                            <span className="rounded-full bg-white/8 px-3 py-1 text-xs font-black text-white/60">{record.count}</span>
+                          </div>
+                        )) : <p className="text-sm font-semibold text-white/45">Sin datos aún.</p>}
+                      </div>
+                    </article>
+
+                    <article className="rounded-[8px] border border-white/10 bg-black/30 p-4">
+                      <p className="text-xs font-black uppercase text-[#d7b23f]">Jugadores más elegidos</p>
+                      <div className="mt-4 space-y-3">
+                        {analytics.topPlayers.length ? analytics.topPlayers.map((player, index) => (
+                          <div key={player.id} className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-white/10 bg-white/5 text-xs font-black text-white/50">
+                              {index + 1}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="truncate font-black text-white">{player.name}</p>
+                              <p className="text-xs font-bold text-white/40">{player.position || 'Sin posición'}</p>
+                            </div>
+                            <span className="text-lg font-black text-[#d7b23f]">{player.count}</span>
+                          </div>
+                        )) : <p className="text-sm font-semibold text-white/45">Sin picks registrados todavía.</p>}
+                      </div>
+                    </article>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
+                    <article className="rounded-[8px] border border-white/10 bg-black/30 p-4">
+                      <p className="text-xs font-black uppercase text-[#d7b23f]">Entrenadores favoritos</p>
+                      <div className="mt-4 space-y-3">
+                        {analytics.topCoaches.length ? analytics.topCoaches.map((coach) => (
+                          <div key={coach.id} className="flex items-center justify-between gap-3 rounded-[8px] border border-white/10 bg-white/5 px-3 py-2">
+                            <span className="font-black text-white">{coach.name}</span>
+                            <span className="text-sm font-black text-[#d7b23f]">{coach.count}</span>
+                          </div>
+                        )) : <p className="text-sm font-semibold text-white/45">Sin entrenadores registrados todavía.</p>}
+                      </div>
+                    </article>
+
+                    <article className="rounded-[8px] border border-white/10 bg-black/30 p-4">
+                      <p className="text-xs font-black uppercase text-[#d7b23f]">Últimas partidas</p>
+                      <div className="mt-4 divide-y divide-white/10">
+                        {analytics.latestGames.length ? analytics.latestGames.map((game) => (
+                          <div key={game.id} className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                            <div className="min-w-0">
+                              <p className="truncate font-black text-white">{game.displayName}</p>
+                              <p className="mt-1 truncate text-xs font-semibold text-white/45">
+                                {game.record} · {formatShortDateTime(game.createdAt)} · {game.lineup.map((player) => player.name).join(' · ')}
+                              </p>
+                            </div>
+                            <p className="text-2xl font-black text-[#d7b23f]">{game.score}</p>
+                          </div>
+                        )) : <p className="py-3 text-sm font-semibold text-white/45">Aún no hay últimas partidas.</p>}
+                      </div>
+                    </article>
+                  </div>
+                </div>
+              )}
             </section>
 
             <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
