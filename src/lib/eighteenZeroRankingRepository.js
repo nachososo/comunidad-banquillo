@@ -55,6 +55,39 @@ const normalizeGame = (entry) => ({
   createdAt: entry.created_at || entry.createdAt || new Date().toISOString(),
 });
 
+const round = (value) => Math.round(value * 10) / 10;
+
+const buildUserSummary = (games) => {
+  const normalizedGames = games.map(normalizeGame);
+  const totalGames = normalizedGames.length;
+  const totalScore = normalizedGames.reduce((total, game) => total + game.score, 0);
+  const bestGame = [...normalizedGames].sort(
+    (first, second) => second.score - first.score || new Date(first.createdAt) - new Date(second.createdAt),
+  )[0] || null;
+  const playerCounts = new Map();
+
+  normalizedGames.forEach((game) => {
+    game.lineup.forEach((player) => {
+      const key = player.personId || player.id || player.name;
+      if (!key) return;
+      const current = playerCounts.get(key) || { id: key, name: player.name, count: 0 };
+      playerCounts.set(key, { ...current, name: player.name, count: current.count + 1 });
+    });
+  });
+
+  return {
+    totalGames,
+    averageScore: totalGames ? round(totalScore / totalGames) : 0,
+    bestGame,
+    perfectSeasons: normalizedGames.filter((game) => game.record === '18-0').length,
+    rerollsUsed: normalizedGames.filter((game) => game.usedReroll).length,
+    favoritePlayer: Array.from(playerCounts.values()).sort(
+      (first, second) => second.count - first.count || first.name.localeCompare(second.name),
+    )[0] || null,
+    latestGames: normalizedGames.slice(0, 3),
+  };
+};
+
 const normalizePlayerSnapshot = (player) => ({
   id: player.id,
   personId: player.personId || player.id,
@@ -108,24 +141,29 @@ export const loadEighteenZeroRanking = async ({ isAuthenticated }) => {
   return sortRanking(data || []);
 };
 
-export const loadEighteenZeroGameHistory = async ({ isAuthenticated, userId }) => {
+export const loadEighteenZeroGameHistory = async ({ isAuthenticated, userId, limit = 5 }) => {
   if (!isAuthenticated) return [];
   if (!isSupabaseConfigured) {
     return readLocalHistory()
       .filter((entry) => (entry.user_id || entry.userId) === userId)
       .map(normalizeGame)
       .sort((first, second) => second.createdAt.localeCompare(first.createdAt))
-      .slice(0, 5);
+      .slice(0, limit);
   }
 
   const { data, error } = await supabase
     .from('eighteen_zero_games')
     .select('id,user_id,display_name,score,record,lineup,coach,events,scores,mvp,key_player,used_reroll,random_factor,created_at')
     .order('created_at', { ascending: false })
-    .limit(5);
+    .limit(limit);
 
   if (error) throw new Error(error.message);
   return (data || []).map(normalizeGame);
+};
+
+export const loadEighteenZeroUserSummary = async ({ isAuthenticated, userId }) => {
+  const games = await loadEighteenZeroGameHistory({ isAuthenticated, userId, limit: 100 });
+  return buildUserSummary(games);
 };
 
 export const submitEighteenZeroScore = async ({ user, score, record, game }) => {

@@ -1,13 +1,48 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, Navigate } from 'react-router-dom';
 import { Activity, LogOut, Settings, Shirt, UserRound } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { useAuth } from '@/auth/AuthContext.jsx';
+import AccountEighteenZeroSummary from '@/components/eighteenZero/AccountEighteenZeroSummary.jsx';
+import { loadEighteenZeroUserSummary } from '@/lib/eighteenZeroRankingRepository.js';
+
+const emptyEighteenZeroSummary = {
+  totalGames: 0,
+  averageScore: 0,
+  bestGame: null,
+  perfectSeasons: 0,
+  rerollsUsed: 0,
+  favoritePlayer: null,
+  latestGames: [],
+};
 
 const AccountPage = () => {
   const { user, loading, isAuthenticated, isAdmin, signOut } = useAuth();
+  const [eighteenZeroSummary, setEighteenZeroSummary] = useState(emptyEighteenZeroSummary);
+  const [isLoadingEighteenZeroSummary, setIsLoadingEighteenZeroSummary] = useState(false);
+  const [eighteenZeroError, setEighteenZeroError] = useState('');
+
+  useEffect(() => {
+    if (loading || !isAuthenticated) return;
+    let active = true;
+    setIsLoadingEighteenZeroSummary(true);
+    setEighteenZeroError('');
+
+    loadEighteenZeroUserSummary({ isAuthenticated, userId: user?.id })
+      .then((summary) => {
+        if (active) setEighteenZeroSummary(summary);
+      })
+      .catch((error) => {
+        if (active) setEighteenZeroError(error.message || 'No se ha podido cargar tu resumen del 18-0.');
+      })
+      .finally(() => {
+        if (active) setIsLoadingEighteenZeroSummary(false);
+      });
+
+    return () => { active = false; };
+  }, [loading, isAuthenticated, user?.id]);
 
   if (loading) {
     return (
@@ -80,6 +115,12 @@ const AccountPage = () => {
                   Acceso privado para registrar estadísticas de partido si tienes permiso de anotador.
                 </p>
               </Link>
+
+              <AccountEighteenZeroSummary
+                summary={eighteenZeroSummary}
+                loading={isLoadingEighteenZeroSummary}
+                error={eighteenZeroError}
+              />
 
               {isAdmin && (
                 <Link
