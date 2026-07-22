@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Activity, Trophy, Star, Calendar, Award, Instagram, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Activity, Trophy, Star, Calendar, Award, Instagram, BarChart3, Share2 } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { allPlayers, matches, playerAdvancedStats, playerGameStats } from '@/data/data.js';
@@ -37,6 +37,7 @@ const PlayerDetailPage = () => {
     typeof window !== 'undefined' && window.location.hash.includes('estadisticas') ? 'stats' : 'profile',
   );
   const [selectedSeason, setSelectedSeason] = useState('2025-2026');
+  const [shareNotice, setShareNotice] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -130,6 +131,26 @@ const PlayerDetailPage = () => {
   const canonicalUrl = `https://comunidaddelbanquillo.es${canonicalPath}`;
   const pageTitle = `${player.name} | ${teamLabel} | La Comunidad del Banquillo`;
   const pageDescription = `Perfil de ${player.name}, ${player.position} del ${teamLabel} de La Comunidad del Banquillo. Dorsal ${player.number}, altura ${player.height}.`;
+  const sharePlayerProfile = async () => {
+    const shareData = {
+      title: pageTitle,
+      text: pageDescription,
+      url: canonicalUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        setShareNotice('Ficha compartida.');
+        return;
+      }
+
+      await navigator.clipboard.writeText(canonicalUrl);
+      setShareNotice('Enlace copiado.');
+    } catch (error) {
+      if (error.name !== 'AbortError') setShareNotice('No se ha podido compartir el enlace.');
+    }
+  };
   const profileParagraphs = player.profile_text
     ? player.profile_text
         .split(/\n{2,}/)
@@ -348,6 +369,14 @@ const PlayerDetailPage = () => {
                     >
                       <BarChart3 size={14} /> Estadísticas
                     </button>
+                    <button
+                      type="button"
+                      onClick={sharePlayerProfile}
+                      className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm font-medium text-gray-400 transition-smooth hover:border-[hsl(43_65%_52%_/_0.35)] hover:text-[hsl(43_65%_52%)]"
+                    >
+                      <Share2 size={14} />
+                      Compartir
+                    </button>
                   </div>
 
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6">
@@ -373,6 +402,11 @@ const PlayerDetailPage = () => {
                       </a>
                     )}
                   </div>
+                  {shareNotice && (
+                    <p className="mt-4 inline-flex rounded-full border border-[hsl(43_65%_52%_/_0.25)] bg-[hsl(43_65%_52%_/_0.08)] px-3 py-1 text-xs font-black uppercase text-[hsl(43_65%_52%)]">
+                      {shareNotice}
+                    </p>
+                  )}
                 </div>
 
                 {activeSection === 'profile' ? (
