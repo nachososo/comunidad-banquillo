@@ -1,10 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { getPlayerPath } from '@/utils/playerSlug.js';
 
 const PlayerCard = ({ player }) => {
   return (
     <Link
-      to={`/jugador/${player.id}`}
+      to={getPlayerPath(player)}
       className="group block bg-[#1a1a1a] rounded-xl overflow-hidden border border-[hsl(43_65%_52%_/_0.2)] hover:border-[hsl(43_65%_52%)] transition-smooth hover:shadow-lg hover:shadow-[hsl(43_65%_52%_/_0.2)] hover:-translate-y-1"
     >
       <div className="aspect-[2/3] overflow-hidden bg-black">

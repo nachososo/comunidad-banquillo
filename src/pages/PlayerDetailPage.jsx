@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Activity, Trophy, Star, Calendar, Award, Instagram, BarChart3 } from 'lucide-react';
 import Header from '@/components/Header.jsx';
@@ -8,6 +8,7 @@ import Footer from '@/components/Footer.jsx';
 import { allPlayers, matches, playerAdvancedStats, playerGameStats } from '@/data/data.js';
 import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient.js';
 import { buildAdvancedTotals, formatPercentage, mergeStatRows } from '@/utils/statCalculations.js';
+import { getPlayerIdFromSlug, getPlayerSlug, slugifyPlayerName } from '@/utils/playerSlug.js';
 
 const formatSeniority = (seniority) => {
   if (!seniority) return 'Reciente';
@@ -25,8 +26,11 @@ const formatSeniority = (seniority) => {
 
 const PlayerDetailPage = () => {
   const { id } = useParams();
-  const numericId = parseInt(id, 10);
-  const basePlayer = allPlayers.find((p) => p.id === numericId);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const numericId = getPlayerIdFromSlug(id);
+  const basePlayer = allPlayers.find((p) => p.id === numericId)
+    || allPlayers.find((p) => slugifyPlayerName(p.name) === slugifyPlayerName(id));
   const [remotePlayer, setRemotePlayer] = useState(null);
   const [remoteStatRows, setRemoteStatRows] = useState(null);
   const [activeSection, setActiveSection] = useState(() =>
@@ -94,6 +98,14 @@ const PlayerDetailPage = () => {
       profile_text: remotePlayer.profile_text || basePlayer.profile_text,
     };
   }, [basePlayer, remotePlayer]);
+
+  useEffect(() => {
+    if (!player) return;
+    const canonicalSlug = getPlayerSlug(player);
+    if (id !== canonicalSlug) {
+      navigate(`/jugador/${canonicalSlug}${location.hash || ''}`, { replace: true });
+    }
+  }, [id, location.hash, navigate, player]);
 
   if (!player) {
     return (
