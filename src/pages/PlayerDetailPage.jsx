@@ -126,6 +126,10 @@ const PlayerDetailPage = () => {
 
   const backLink = player.team === 'masculine' ? '/plantilla-masculina' : '/plantilla-femenina';
   const teamLabel = player.team === 'masculine' ? 'Equipo Masculino' : 'Equipo Femenino';
+  const canonicalPath = `/jugador/${getPlayerSlug(player)}`;
+  const canonicalUrl = `https://comunidaddelbanquillo.es${canonicalPath}`;
+  const pageTitle = `${player.name} | ${teamLabel} | La Comunidad del Banquillo`;
+  const pageDescription = `Perfil de ${player.name}, ${player.position} del ${teamLabel} de La Comunidad del Banquillo. Dorsal ${player.number}, altura ${player.height}.`;
   const profileParagraphs = player.profile_text
     ? player.profile_text
         .split(/\n{2,}/)
@@ -241,11 +245,34 @@ const PlayerDetailPage = () => {
   return (
     <div className="min-h-screen flex flex-col bg-[#040404] relative overflow-hidden">
       <Helmet>
-        <title>{`${player.name} - La Comunidad del Banquillo`}</title>
-        <meta
-          name="description"
-          content={`Perfil de ${player.name}, ${player.position} del ${teamLabel} de La Comunidad del Banquillo.`}
-        />
+        <title>{pageTitle}</title>
+        <link rel="canonical" href={canonicalUrl} />
+        <meta name="description" content={pageDescription} />
+        <meta property="og:type" content="profile" />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDescription} />
+        <meta property="og:url" content={canonicalUrl} />
+        <meta property="og:image" content={player.poster} />
+        <meta property="og:site_name" content="La Comunidad del Banquillo" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={pageDescription} />
+        <meta name="twitter:image" content={player.poster} />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Person',
+            name: player.name,
+            url: canonicalUrl,
+            image: player.poster,
+            memberOf: {
+              '@type': 'SportsTeam',
+              name: `La Comunidad del Banquillo - ${teamLabel}`,
+            },
+            athlete: true,
+            sport: 'Basketball',
+          })}
+        </script>
       </Helmet>
 
       <div
