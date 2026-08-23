@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, Navigate } from 'react-router-dom';
+import * as tus from 'tus-js-client';
 import { ArrowLeft, Eye, EyeOff, ImageUp, Newspaper, Plus, RotateCcw, Save, Star, Trash2, Video } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
@@ -38,6 +39,16 @@ const MAX_VIDEO_SIZE = 250 * 1024 * 1024;
 const NEWS_POST_SELECT = 'id,title,slug,excerpt,body,cover_url,video_url,category,author,published,featured,published_at,created_at';
 const NEWS_POST_FALLBACK_SELECT = 'id,title,slug,excerpt,body,cover_url,category,author,published,featured,published_at,created_at';
 
+const formatFileSize = (bytes) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+const getSupabaseProjectRef = () => {
+  try {
+    return new URL(import.meta.env.VITE_SUPABASE_URL).hostname.split('.')[0];
+  } catch {
+    return '';
+  }
+};
+
 const NewsAdminPage = () => {
   const { authMode, loading, isAuthenticated, isAdmin, user } = useAuth();
   const [posts, setPosts] = useState(defaultNewsPosts);
@@ -46,6 +57,7 @@ const NewsAdminPage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const [notice, setNotice] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [usingLocalFallback, setUsingLocalFallback] = useState(false);
@@ -266,6 +278,7 @@ const NewsAdminPage = () => {
 
     setNotice('');
     setErrorMessage('');
+    setVideoUploadProgress(0);
 
     if (!isSupabaseConfigured || usingLocalFallback) {
       setErrorMessage('Para subir vídeos necesitas Supabase Storage activo.');
@@ -286,25 +299,76 @@ const NewsAdminPage = () => {
     const extension = file.name.split('.').pop()?.toLowerCase() || 'mp4';
     const baseSlug = createNewsSlug(form.slug || form.title || 'noticia');
     const filePath = `${baseSlug}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+    const projectRef = getSupabaseProjectRef();
 
-    const { error: uploadError } = await supabase.storage
-      .from(NEWS_VIDEOS_BUCKET)
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        contentType: file.type,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      setErrorMessage(uploadError.message);
+    if (!projectRef) {
+      setErrorMessage('No he podido detectar el proyecto de Supabase para subir el vídeo.');
       setIsUploadingVideo(false);
       return;
     }
 
-    const { data } = supabase.storage.from(NEWS_VIDEOS_BUCKET).getPublicUrl(filePath);
-    setForm((current) => ({ ...current, video_url: data.publicUrl }));
-    setNotice('Vídeo subido correctamente. La URL de vídeo se ha rellenado automáticamente.');
-    setIsUploadingVideo(false);
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+
+    if (sessionError || !accessToken) {
+      setErrorMessage('Tu sesión ha caducado. Vuelve a iniciar sesión e intenta subir el vídeo otra vez.');
+      setIsUploadingVideo(false);
+      return;
+    }
+
+    await new Promise((resolve) => {
+      const upload = new tus.Upload(file, {
+        endpoint: `https://${projectRef}.storage.supabase.co/storage/v1/upload/resumable`,
+        retryDelays: [0, 3000, 5000, 10000, 20000],
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'x-upsert': 'false',
+        },
+        uploadDataDuringCreation: true,
+        removeFingerprintOnSuccess: true,
+        chunkSize: 6 * 1024 * 1024,
+        metadata: {
+          bucketName: NEWS_VIDEOS_BUCKET,
+          objectName: filePath,
+          contentType: file.type || 'video/mp4',
+          cacheControl: '3600',
+        },
+        onError: (uploadError) => {
+          const message = uploadError?.originalResponse?.getBody?.() || uploadError?.message || 'No he podido subir el vídeo.';
+          const sizeHelp = message.toLowerCase().includes('exceeded') || message.toLowerCase().includes('large')
+            ? ` Supabase sigue rechazando el tamaño (${formatFileSize(file.size)}). Revisa en Storage → Settings que el límite global sea de 250 MB o superior.`
+            : '';
+          setErrorMessage(`${message}${sizeHelp}`);
+          setIsUploadingVideo(false);
+          resolve();
+        },
+        onProgress: (bytesUploaded, bytesTotal) => {
+          setVideoUploadProgress(Math.round((bytesUploaded / bytesTotal) * 100));
+        },
+        onSuccess: () => {
+          const { data } = supabase.storage.from(NEWS_VIDEOS_BUCKET).getPublicUrl(filePath);
+          setForm((current) => ({ ...current, video_url: data.publicUrl }));
+          setNotice('Vídeo subido correctamente. La URL de vídeo se ha rellenado automáticamente.');
+          setVideoUploadProgress(100);
+          setIsUploadingVideo(false);
+          resolve();
+        },
+      });
+
+      upload.findPreviousUploads()
+        .then((previousUploads) => {
+          if (previousUploads.length) {
+            upload.resumeFromPreviousUpload(previousUploads[0]);
+          }
+          upload.start();
+        })
+        .catch((uploadError) => {
+          setErrorMessage(uploadError?.message || 'No he podido iniciar la subida del vídeo.');
+          setIsUploadingVideo(false);
+          resolve();
+        });
+    });
   };
 
   if (loading) {
@@ -435,6 +499,18 @@ const NewsAdminPage = () => {
                   <p className="mt-2 text-xs text-gray-500">
                     Puedes pegar un enlace de YouTube o subir un MP4/WebM/MOV. Límite máximo: 250 MB.
                   </p>
+                  {isUploadingVideo && (
+                    <div className="mt-3 rounded-lg border border-sky-300/20 bg-sky-400/10 p-3">
+                      <div className="mb-2 flex items-center justify-between text-xs font-black uppercase text-sky-100">
+                        <span>Subiendo vídeo por partes</span>
+                        <span>{videoUploadProgress}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-black/40">
+                        <div className="h-full rounded-full bg-sky-300 transition-all" style={{ width: `${videoUploadProgress}%` }} />
+                      </div>
+                      <p className="mt-2 text-xs text-sky-100/70">No cierres esta pestaña hasta que termine la subida.</p>
+                    </div>
+                  )}
                   {form.video_url && (
                     <div className="mt-4">
                       <NewsVideoEmbed src={form.video_url} title={`Vista previa de vídeo: ${form.title || 'noticia'}`} />
