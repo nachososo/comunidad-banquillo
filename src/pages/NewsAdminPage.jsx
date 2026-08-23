@@ -34,7 +34,7 @@ const toDatetimeLocal = (value) => {
 const NEWS_IMAGES_BUCKET = 'news-images';
 const NEWS_VIDEOS_BUCKET = 'news-videos';
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
-const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 250 * 1024 * 1024;
 const NEWS_POST_SELECT = 'id,title,slug,excerpt,body,cover_url,video_url,category,author,published,featured,published_at,created_at';
 const NEWS_POST_FALLBACK_SELECT = 'id,title,slug,excerpt,body,cover_url,category,author,published,featured,published_at,created_at';
 
@@ -278,7 +278,7 @@ const NewsAdminPage = () => {
     }
 
     if (file.size > MAX_VIDEO_SIZE) {
-      setErrorMessage('El vídeo no puede pesar más de 100 MB.');
+      setErrorMessage('El vídeo no puede pesar más de 250 MB.');
       return;
     }
 
@@ -433,7 +433,7 @@ const NewsAdminPage = () => {
                     </label>
                   </div>
                   <p className="mt-2 text-xs text-gray-500">
-                    Puedes pegar un enlace de YouTube o subir un MP4/WebM/MOV. Límite recomendado: 100 MB.
+                    Puedes pegar un enlace de YouTube o subir un MP4/WebM/MOV. Límite máximo: 250 MB.
                   </p>
                   {form.video_url && (
                     <div className="mt-4">

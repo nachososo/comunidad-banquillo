@@ -5,7 +5,7 @@ values (
   'news-videos',
   'news-videos',
   true,
-  104857600,
+  262144000,
   array['video/mp4', 'video/webm', 'video/quicktime']
 )
 on conflict (id) do update set
