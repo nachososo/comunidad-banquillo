@@ -81,7 +81,7 @@ export const controlPanelSchema = [
     name: 'news_posts',
     title: 'Noticias',
     purpose: 'Noticias, crónicas, previas y avisos publicados en la web.',
-    fields: ['id', 'title', 'slug', 'excerpt', 'body', 'cover_url', 'category', 'author', 'published', 'featured', 'published_at'],
+    fields: ['id', 'title', 'slug', 'excerpt', 'body', 'cover_url', 'video_url', 'category', 'author', 'published', 'featured', 'published_at'],
   },
   {
     name: 'contact_messages',

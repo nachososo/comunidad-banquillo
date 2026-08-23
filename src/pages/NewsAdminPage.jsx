@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, Navigate } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff, ImageUp, Newspaper, Plus, RotateCcw, Save, Star, Trash2 } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, ImageUp, Newspaper, Plus, RotateCcw, Save, Star, Trash2, Video } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { useAuth } from '@/auth/AuthContext.jsx';
 import { createNewsSlug, defaultNewsPosts, normalizeNewsPost, sortNewsPosts } from '@/data/newsPosts.js';
 import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient.js';
+import NewsVideoEmbed from '@/components/news/NewsVideoEmbed.jsx';
 
 const createEmptyPost = () => ({
   id: '',
@@ -15,6 +16,7 @@ const createEmptyPost = () => ({
   excerpt: '',
   body: '',
   cover_url: '',
+  video_url: '',
   category: 'Club',
   author: '',
   published: false,
@@ -30,7 +32,11 @@ const toDatetimeLocal = (value) => {
 };
 
 const NEWS_IMAGES_BUCKET = 'news-images';
+const NEWS_VIDEOS_BUCKET = 'news-videos';
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
+const NEWS_POST_SELECT = 'id,title,slug,excerpt,body,cover_url,video_url,category,author,published,featured,published_at,created_at';
+const NEWS_POST_FALLBACK_SELECT = 'id,title,slug,excerpt,body,cover_url,category,author,published,featured,published_at,created_at';
 
 const NewsAdminPage = () => {
   const { authMode, loading, isAuthenticated, isAdmin, user } = useAuth();
@@ -39,6 +45,7 @@ const NewsAdminPage = () => {
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [notice, setNotice] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [usingLocalFallback, setUsingLocalFallback] = useState(false);
@@ -62,10 +69,19 @@ const NewsAdminPage = () => {
       return;
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('news_posts')
-      .select('id,title,slug,excerpt,body,cover_url,category,author,published,featured,published_at,created_at')
+      .select(NEWS_POST_SELECT)
       .order('published_at', { ascending: false });
+
+    if (error?.message?.includes('video_url')) {
+      const fallback = await supabase
+        .from('news_posts')
+        .select(NEWS_POST_FALLBACK_SELECT)
+        .order('published_at', { ascending: false });
+      data = fallback.data;
+      error = fallback.error;
+    }
 
     if (error) {
       setErrorMessage(`No he podido leer news_posts: ${error.message}`);
@@ -125,6 +141,7 @@ const NewsAdminPage = () => {
       excerpt: form.excerpt.trim(),
       body: form.body.trim(),
       cover_url: form.cover_url.trim(),
+      video_url: form.video_url?.trim() || '',
       category: form.category.trim() || 'Club',
       author: form.author?.trim() || '',
       published: Boolean(form.published),
@@ -145,11 +162,17 @@ const NewsAdminPage = () => {
       return;
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('news_posts')
       .upsert(payload, { onConflict: 'id' })
-      .select('id,title,slug,excerpt,body,cover_url,category,author,published,featured,published_at,created_at')
+      .select(NEWS_POST_SELECT)
       .single();
+
+    if (error?.message?.includes('video_url')) {
+      setErrorMessage('Falta ejecutar el SQL de vídeos en Supabase antes de guardar una noticia con vídeo.');
+      setIsSaving(false);
+      return;
+    }
 
     if (error) {
       setErrorMessage(error.message);
@@ -236,6 +259,54 @@ const NewsAdminPage = () => {
     setIsUploadingImage(false);
   };
 
+  const uploadNewsVideo = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setNotice('');
+    setErrorMessage('');
+
+    if (!isSupabaseConfigured || usingLocalFallback) {
+      setErrorMessage('Para subir vídeos necesitas Supabase Storage activo.');
+      return;
+    }
+
+    if (!file.type.startsWith('video/')) {
+      setErrorMessage('El archivo debe ser un vídeo.');
+      return;
+    }
+
+    if (file.size > MAX_VIDEO_SIZE) {
+      setErrorMessage('El vídeo no puede pesar más de 100 MB.');
+      return;
+    }
+
+    setIsUploadingVideo(true);
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'mp4';
+    const baseSlug = createNewsSlug(form.slug || form.title || 'noticia');
+    const filePath = `${baseSlug}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(NEWS_VIDEOS_BUCKET)
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      setErrorMessage(uploadError.message);
+      setIsUploadingVideo(false);
+      return;
+    }
+
+    const { data } = supabase.storage.from(NEWS_VIDEOS_BUCKET).getPublicUrl(filePath);
+    setForm((current) => ({ ...current, video_url: data.publicUrl }));
+    setNotice('Vídeo subido correctamente. La URL de vídeo se ha rellenado automáticamente.');
+    setIsUploadingVideo(false);
+  };
+
   if (loading) {
     return <div className="min-h-screen bg-[#0a0a0a] text-white"><Header /><main className="p-16 text-center text-sm font-black uppercase text-[hsl(43_65%_52%)]">Cargando noticias...</main></div>;
   }
@@ -306,6 +377,7 @@ const NewsAdminPage = () => {
                       <span className="min-w-0">
                         <span className="flex items-center gap-2">
                           {post.featured && <Star size={14} className="text-[hsl(43_65%_52%)]" />}
+                          {post.video_url && <Video size={14} className="text-sky-300" />}
                           <span className="truncate text-sm font-black text-white">{post.title}</span>
                         </span>
                         <span className="mt-1 block truncate text-xs text-gray-500">{post.category} · /noticias/{post.slug}</span>
@@ -349,6 +421,24 @@ const NewsAdminPage = () => {
                   </p>
                   {form.cover_url && (
                     <img src={form.cover_url} alt="Vista previa de portada" className="mt-4 max-h-64 w-full rounded-lg border border-white/10 object-cover" />
+                  )}
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                    <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Vídeo URL</span><input value={form.video_url || ''} onChange={(event) => setForm((current) => ({ ...current, video_url: event.target.value }))} placeholder="https://... o YouTube" className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-3 text-sm font-bold text-white outline-none focus:border-[hsl(43_65%_52%)]" /></label>
+                    <label className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-sky-300/35 bg-sky-400/10 px-4 py-3 text-xs font-black uppercase text-sky-200 transition hover:border-sky-300 hover:bg-sky-400/15 ${isUploadingVideo ? 'pointer-events-none opacity-60' : ''}`}>
+                      <Video size={16} />
+                      {isUploadingVideo ? 'Subiendo...' : 'Subir vídeo'}
+                      <input type="file" accept="video/*" onChange={uploadNewsVideo} disabled={isUploadingVideo} className="sr-only" />
+                    </label>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Puedes pegar un enlace de YouTube o subir un MP4/WebM/MOV. Límite recomendado: 100 MB.
+                  </p>
+                  {form.video_url && (
+                    <div className="mt-4">
+                      <NewsVideoEmbed src={form.video_url} title={`Vista previa de vídeo: ${form.title || 'noticia'}`} />
+                    </div>
                   )}
                 </div>
                 <div className="grid gap-4 sm:grid-cols-3">

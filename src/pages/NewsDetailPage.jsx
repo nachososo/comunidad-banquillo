@@ -6,9 +6,13 @@ import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { defaultNewsPosts, sortNewsPosts } from '@/data/newsPosts.js';
 import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient.js';
+import NewsVideoEmbed from '@/components/news/NewsVideoEmbed.jsx';
 
 const formatDate = (value) =>
   new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(value));
+
+const NEWS_POST_SELECT = 'id,title,slug,excerpt,body,cover_url,video_url,category,author,published,featured,published_at,created_at';
+const NEWS_POST_FALLBACK_SELECT = 'id,title,slug,excerpt,body,cover_url,category,author,published,featured,published_at,created_at';
 
 const NewsDetailPage = () => {
   const { slug } = useParams();
@@ -21,12 +25,23 @@ const NewsDetailPage = () => {
     let active = true;
 
     const loadNews = async () => {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('news_posts')
-        .select('id,title,slug,excerpt,body,cover_url,category,author,published,featured,published_at,created_at')
+        .select(NEWS_POST_SELECT)
         .eq('published', true)
         .eq('slug', slug)
         .maybeSingle();
+
+      if (error?.message?.includes('video_url')) {
+        const fallback = await supabase
+          .from('news_posts')
+          .select(NEWS_POST_FALLBACK_SELECT)
+          .eq('published', true)
+          .eq('slug', slug)
+          .maybeSingle();
+        data = fallback.data;
+        error = fallback.error;
+      }
 
       if (!active) return;
       if (!error) setPosts(data ? [data] : []);
@@ -94,6 +109,12 @@ const NewsDetailPage = () => {
                     className="block max-h-[42rem] max-w-full object-contain"
                   />
                 </figure>
+              )}
+
+              {post.video_url && (
+                <div className="mb-8">
+                  <NewsVideoEmbed src={post.video_url} title={`Vídeo de ${post.title}`} />
+                </div>
               )}
 
               <div className="rounded-2xl border border-white/10 bg-[#111]/90 p-6 md:p-8">

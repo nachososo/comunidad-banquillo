@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowRight, CalendarDays, Newspaper, Star } from 'lucide-react';
+import { ArrowRight, CalendarDays, Newspaper, PlayCircle, Star } from 'lucide-react';
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import { defaultNewsPosts, sortNewsPosts } from '@/data/newsPosts.js';
@@ -9,6 +9,9 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient.js';
 
 const formatDate = (value) =>
   new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(value));
+
+const NEWS_POST_SELECT = 'id,title,slug,excerpt,body,cover_url,video_url,category,author,published,featured,published_at,created_at';
+const NEWS_POST_FALLBACK_SELECT = 'id,title,slug,excerpt,body,cover_url,category,author,published,featured,published_at,created_at';
 
 const NewsPage = () => {
   const [searchParams] = useSearchParams();
@@ -22,12 +25,23 @@ const NewsPage = () => {
     let active = true;
 
     const loadNews = async () => {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('news_posts')
-        .select('id,title,slug,excerpt,body,cover_url,category,author,published,featured,published_at,created_at')
+        .select(NEWS_POST_SELECT)
         .eq('published', true)
         .order('featured', { ascending: false })
         .order('published_at', { ascending: false });
+
+      if (error?.message?.includes('video_url')) {
+        const fallback = await supabase
+          .from('news_posts')
+          .select(NEWS_POST_FALLBACK_SELECT)
+          .eq('published', true)
+          .order('featured', { ascending: false })
+          .order('published_at', { ascending: false });
+        data = fallback.data;
+        error = fallback.error;
+      }
 
       if (!active) return;
       if (!error) setPosts(sortNewsPosts(data || []));
@@ -95,14 +109,14 @@ const NewsPage = () => {
                       <img src={featuredPost.cover_url} alt={featuredPost.title} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full min-h-72 items-center justify-center bg-gradient-to-br from-[#241b08] to-black">
-                        <Newspaper size={72} className="text-[hsl(43_65%_52%_/_0.55)]" />
+                        {featuredPost.video_url ? <PlayCircle size={76} className="text-[hsl(43_65%_52%_/_0.65)]" /> : <Newspaper size={72} className="text-[hsl(43_65%_52%_/_0.55)]" />}
                       </div>
                     )}
                   </div>
                   <div className="flex flex-col justify-center p-6 lg:p-8">
                     <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-[hsl(43_65%_52%_/_0.3)] bg-[hsl(43_65%_52%_/_0.08)] px-3 py-1 text-xs font-black uppercase text-[hsl(43_65%_62%)]">
                       <Star size={14} />
-                      Destacada · {featuredPost.category}
+                      Destacada · {featuredPost.video_url ? 'Vídeo · ' : ''}{featuredPost.category}
                     </span>
                     <h2 className="text-3xl font-black leading-tight text-white md:text-4xl">{featuredPost.title}</h2>
                     <p className="mt-4 text-base leading-relaxed text-gray-400">{featuredPost.excerpt}</p>
@@ -128,15 +142,15 @@ const NewsPage = () => {
                   >
                     <div className="h-44 bg-black/30">
                       {post.cover_url ? (
-                        <img src={post.cover_url} alt={post.title} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-[#1b160a] to-black">
-                          <Newspaper size={42} className="text-[hsl(43_65%_52%_/_0.45)]" />
+                      <img src={post.cover_url} alt={post.title} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center bg-gradient-to-br from-[#1b160a] to-black">
+                          {post.video_url ? <PlayCircle size={46} className="text-[hsl(43_65%_52%_/_0.55)]" /> : <Newspaper size={42} className="text-[hsl(43_65%_52%_/_0.45)]" />}
                         </div>
-                      )}
-                    </div>
-                    <div className="p-5">
-                      <p className="text-xs font-black uppercase text-[hsl(43_65%_52%)]">{post.category}</p>
+                    )}
+                  </div>
+                  <div className="p-5">
+                      <p className="text-xs font-black uppercase text-[hsl(43_65%_52%)]">{post.video_url ? `Vídeo · ${post.category}` : post.category}</p>
                       <h2 className="mt-2 line-clamp-2 text-xl font-black text-white">{post.title}</h2>
                       <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-gray-400">{post.excerpt}</p>
                       <p className="mt-5 flex items-center gap-2 text-xs font-bold uppercase text-gray-500">
