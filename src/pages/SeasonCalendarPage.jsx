@@ -7,6 +7,7 @@ import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
 import MatchCard from '@/components/MatchCard.jsx';
 import { allPlayers, matches } from '@/data/data.js';
+import { calendarRestDays } from '@/data/masculineCalendar2026.js';
 import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient.js';
 
 const teamMap = {
@@ -22,6 +23,7 @@ const SeasonCalendarPage = () => {
     ? matches.filter((match) => match.team === selectedTeam.id && match.season === season)
     : [];
   const [seasonMatches, setSeasonMatches] = useState(localSeasonMatches);
+  const restDays = calendarRestDays.filter((rest) => rest.team === selectedTeam?.id && rest.season === season);
   const [statsByMatch, setStatsByMatch] = useState(new Map());
   const [calendarPlayers, setCalendarPlayers] = useState(allPlayers);
 
@@ -178,6 +180,18 @@ const SeasonCalendarPage = () => {
                 <p className="mx-auto text-gray-400">
                   Todavía no hay partidos asignados. Los añadiremos cuando esté cerrado el calendario.
                 </p>
+              </div>
+            )}
+            {restDays.length > 0 && (
+              <div className="mt-8 rounded-xl border border-white/10 bg-[#111]/90 p-6">
+                <h2 className="text-white text-lg font-bold">Jornadas de descanso</h2>
+                <ul className="mt-3 space-y-2 text-gray-400">
+                  {restDays.map((rest) => (
+                    <li key={rest.round}>
+                      Jornada {rest.round} · {rest.date.split('-').reverse().join('/')}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </motion.div>

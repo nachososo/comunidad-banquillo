@@ -1,3 +1,5 @@
+import { BANQUIGER_SEASON, buildBanquigerCalendarRounds, mergeBanquigerCalendarRounds } from './banquigerSchedule.js';
+
 export const BANQUIGER_PLAYERS_STORAGE_KEY = 'banquiger-admin-players-v1';
 export const BANQUIGER_SETTINGS_STORAGE_KEY = 'banquiger-admin-settings-v1';
 export const BANQUIGER_ROUNDS_STORAGE_KEY = 'banquiger-admin-rounds-v1';
@@ -11,13 +13,16 @@ export const defaultBanquigerSettings = {
   economyVersion: 6,
   budget: 5,
   teamSize: 7,
-  currentRound: 'Jornada de prueba',
+  season: BANQUIGER_SEASON,
+  automaticSchedule: true,
+  currentRound: 'Jornada 1 · 2026/2027',
   marketStatus: 'open',
   starterNonPointMultiplier: 2,
 };
 
 export const defaultBanquigerRounds = [
-  { id: 'round-1', name: 'Jornada 1', deadline: '2026-06-21T18:00', status: 'open', scored: false },
+  ...buildBanquigerCalendarRounds(),
+  { id: 'round-1', name: 'Jornada 1', deadline: '2026-06-21T18:00', status: 'closed', scored: false },
   { id: 'round-0', name: 'Jornada de prueba', deadline: '2026-06-14T18:00', status: 'closed', scored: true },
 ];
 
@@ -186,20 +191,21 @@ export const resetStoredBanquigerPlayers = () => {
 };
 
 const normalizeRound = (round = {}) => ({
+  ...round,
   id: String(round.id || `round-${Date.now()}`),
   name: String(round.name || 'Nueva jornada').trim(),
   deadline: String(round.deadline || ''),
-  status: round.status === 'closed' ? 'closed' : 'open',
+  status: ['closed', 'scheduled'].includes(round.status) ? round.status : 'open',
   scored: round.scored === true,
 });
 
 export const getStoredBanquigerRounds = () => {
   const stored = readJson(BANQUIGER_ROUNDS_STORAGE_KEY, defaultBanquigerRounds);
-  return (Array.isArray(stored) ? stored : defaultBanquigerRounds).map(normalizeRound);
+  return mergeBanquigerCalendarRounds(Array.isArray(stored) ? stored : defaultBanquigerRounds).map(normalizeRound);
 };
 
 export const saveStoredBanquigerRounds = (rounds = []) => {
-  const normalized = rounds.map(normalizeRound).filter((round) => round.id && round.name);
+  const normalized = mergeBanquigerCalendarRounds(rounds).map(normalizeRound).filter((round) => round.id && round.name);
   if (storageAvailable()) {
     window.localStorage.setItem(BANQUIGER_ROUNDS_STORAGE_KEY, JSON.stringify(normalized));
   }

@@ -1,5 +1,7 @@
 import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient.js';
 import { cdbPlayers } from '@/data/cdbPlayers.js';
+import { matches, playerGameStats, playerAdvancedStats } from '@/data/data.js';
+import { BANQUIGER_SEASON, mergeBanquigerCalendarRounds } from '@/utils/banquigerSchedule.js';
 
 export const GAME_DATA_KEYS = {
   eighteenZeroPlayers: 'eighteen-zero:players',
@@ -94,7 +96,7 @@ export const loadBanquigerBundle = async (fallbacks) => {
   return {
     settings: settings.data,
     players: players.data,
-    rounds: rounds.data,
+    rounds: mergeBanquigerCalendarRounds(Array.isArray(rounds.data) ? rounds.data : fallbacks.rounds),
     powers: powers.data,
     powerState: powerState.data,
     marketState: marketState.data,
@@ -102,7 +104,40 @@ export const loadBanquigerBundle = async (fallbacks) => {
   };
 };
 
-export const loadBanquigerTeam = async (userId, season = '2025-2026') => {
+export const loadBanquigerMatchData = async () => {
+  const fallback = { matches, gameStats: playerGameStats, advancedStats: playerAdvancedStats };
+  if (!isSupabaseConfigured) return fallback;
+  const { data, error } = await supabase.from('matches')
+    .select('id,team,season,phase,match_date,match_time,rival,venue,court,our_score,rival_score,status')
+    .eq('team', 'masculine').eq('season', BANQUIGER_SEASON).order('match_date');
+  if (error || !data?.length) return fallback;
+  const { data: stats, error: statsError } = await supabase.from('player_stats')
+    .select('*').in('match_id', data.map((match) => match.id));
+  if (statsError) return fallback;
+  const otherMatches = matches.filter((match) => match.season !== BANQUIGER_SEASON);
+  const localById = new Map(matches.map((match) => [match.id, match]));
+  return {
+    matches: [...otherMatches, ...data.map((match) => ({
+      ...localById.get(match.id), id: match.id, team: match.team, season: match.season,
+      date: match.match_date, time: match.match_time?.slice(0, 5) || '00:00',
+      rival: match.rival, venue: match.court || match.venue, status: match.status,
+      result: match.status === 'finished' && match.our_score !== null && match.rival_score !== null
+        ? `${match.our_score}-${match.rival_score}` : null,
+    }))],
+    gameStats: [...playerGameStats, ...stats.map((stat) => ({
+      matchId: stat.match_id, playerId: stat.player_id, minutes: stat.minutes, points: stat.points || 0,
+    }))],
+    advancedStats: [...playerAdvancedStats, ...stats.map((stat) => ({
+      matchId: stat.match_id, playerId: stat.player_id, points: stat.points || 0,
+      fg: stat.field_goals, threePt: stat.three_pointers, ft: stat.free_throws,
+      oreb: stat.offensive_rebounds || 0, dreb: stat.defensive_rebounds || 0,
+      assists: stat.assists || 0, steals: stat.steals || 0, blocks: stat.blocks || 0,
+      turnovers: stat.turnovers || 0, fouls: stat.fouls || 0,
+    }))],
+  };
+};
+
+export const loadBanquigerTeam = async (userId, season = BANQUIGER_SEASON) => {
   if (!isSupabaseConfigured || !userId) return null;
   const { data, error } = await supabase
     .from('banquiger_teams')
@@ -113,11 +148,11 @@ export const loadBanquigerTeam = async (userId, season = '2025-2026') => {
   return error ? null : data;
 };
 
-export const saveBanquigerTeam = async ({ userId, managerName, teamName, budget, selectedIds, selectedMatchId }) => {
+export const saveBanquigerTeam = async ({ userId, managerName, teamName, budget, selectedIds, selectedMatchId, season = BANQUIGER_SEASON }) => {
   if (!isSupabaseConfigured || !userId) return { remote: false };
   const { data, error } = await supabase.from('banquiger_teams').upsert({
     user_id: userId,
-    season: '2025-2026',
+    season,
     name: teamName,
     manager_name: managerName,
     budget,
@@ -127,7 +162,7 @@ export const saveBanquigerTeam = async ({ userId, managerName, teamName, budget,
   return { remote: !error, data, error };
 };
 
-export const loadBanquigerTeams = async (season = '2025-2026') => {
+export const loadBanquigerTeams = async (season = BANQUIGER_SEASON) => {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase
     .from('banquiger_teams')

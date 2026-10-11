@@ -52,6 +52,7 @@ const routes = [
   route('/noticias', { priority: '0.8', changefreq: 'weekly' }),
   route('/contacto', { priority: '0.55', changefreq: 'monthly' }),
   route('/18-0', { priority: '0.8', changefreq: 'weekly' }),
+  route('/adn-banquiller', { priority: '0.8', changefreq: 'weekly' }),
   route('/banquiger', { priority: '0.75', changefreq: 'weekly' }),
   ...calendarRoutes,
   ...playerRoutes,

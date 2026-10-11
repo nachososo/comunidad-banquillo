@@ -99,6 +99,15 @@ export const controlPanelSchema = [
 
 export const controlPanelModules = [
   {
+    id: 'adn-banquiller',
+    title: 'ADN Banquiller',
+    description: 'Gestionar eventos anuales, probabilidades, cambios de media, estadísticas, lesiones y retirada.',
+    status: 'Activo',
+    href: '/panel-control/adn-banquiller',
+    tables: ['game_data'],
+    tasks: ['Crear, editar, duplicar, pausar y eliminar eventos anuales.', 'Ajustar probabilidades, efectos, edades y lesiones necesarias.', 'Publicar el catálogo para partidas sin cuenta ni guardado.'],
+  },
+  {
     id: 'contenido',
     title: 'Contenido web',
     description: 'Editar portada, enlaces, patrocinadores y textos visibles.',

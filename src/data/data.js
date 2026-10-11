@@ -1,3 +1,5 @@
+import { masculineCalendar2026 } from './masculineCalendar2026.js';
+
 export const menRoster = [
   {
     id: 101,
@@ -484,6 +486,8 @@ export const matches = [
     result: '51-45',
   },
 ];
+
+matches.push(...masculineCalendar2026);
 
 export const playerGameStats = [
   { matchId: 1, playerId: 102, minutes: '26:00', points: 6 },

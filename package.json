@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "test:career": "node --test tests/career*.test.js",
     "dev": "vite --host --port 3000",
     "generate:sitemap": "node scripts/generate-sitemap.js",
     "build": "vite build",

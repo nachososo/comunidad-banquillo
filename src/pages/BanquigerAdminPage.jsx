@@ -29,6 +29,7 @@ import Footer from '@/components/Footer.jsx';
 import { useAuth } from '@/auth/AuthContext.jsx';
 import { buildPlayerMarket } from '@/pages/BanquigerPage.jsx';
 import { applyBanquigerPricing } from '@/utils/banquigerPricing.js';
+import { useBanquigerSchedule } from '@/hooks/useBanquigerSchedule.js';
 import {
   defaultBanquigerSettings,
   defaultBanquigerRounds,
@@ -52,7 +53,7 @@ import {
   saveStoredBanquigerPowerState,
   saveStoredBanquigerMarketState,
 } from '@/utils/banquigerStorage.js';
-import { GAME_DATA_KEYS, loadBanquigerBundle, loadBanquigerTeams, saveGameDocument } from '@/lib/gameDataRepository.js';
+import { GAME_DATA_KEYS, loadBanquigerBundle, loadBanquigerTeams, loadBanquigerMatchData, saveGameDocument } from '@/lib/gameDataRepository.js';
 
 const positions = ['Base', 'Escolta', 'Alero', 'Ala-Pívot', 'Pívot'];
 const baseMarket = buildPlayerMarket();
@@ -90,7 +91,7 @@ const panelViews = [
 
 const BanquigerAdminPage = () => {
   const { authMode, loading, isAuthenticated, isAdmin, user } = useAuth();
-  const [settings, setSettings] = useState(() => getStoredBanquigerSettings());
+  const [storedSettings, setSettings] = useState(() => getStoredBanquigerSettings());
   const [players, setPlayers] = useState(() => getStoredBanquigerPlayers(baseMarket, { includeInactive: true }));
   const [selectedId, setSelectedId] = useState(() => players[0]?.id || '');
   const [form, setForm] = useState(() => players[0] || emptyPlayer);
@@ -98,7 +99,8 @@ const BanquigerAdminPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [notice, setNotice] = useState('');
   const [activeView, setActiveView] = useState('overview');
-  const [rounds, setRounds] = useState(() => getStoredBanquigerRounds());
+  const [storedRounds, setRounds] = useState(() => getStoredBanquigerRounds());
+  const { settings, rounds } = useBanquigerSchedule(storedSettings, storedRounds);
   const [newRound, setNewRound] = useState({ name: '', deadline: '' });
   const [powers, setPowers] = useState(() => getStoredBanquigerPowers({ includeInactive: true }));
   const [selectedPowerId, setSelectedPowerId] = useState(() => powers[0]?.id || '');
@@ -284,7 +286,7 @@ const BanquigerAdminPage = () => {
       ...rounds.map((round) => ({ ...round, status: 'closed' })),
     ], 'Jornada creada y mercado anterior cerrado.');
     setSettings((current) => {
-      const next = saveStoredBanquigerSettings({ ...current, currentRound: newRound.name, marketStatus: 'open' });
+      const next = saveStoredBanquigerSettings({ ...current, automaticSchedule: false, currentRound: newRound.name, marketStatus: 'open' });
       saveRemote(GAME_DATA_KEYS.banquigerSettings, next);
       return next;
     });
@@ -293,6 +295,7 @@ const BanquigerAdminPage = () => {
 
   const toggleRound = (roundId) => {
     const target = rounds.find((round) => round.id === roundId);
+    if (target?.automatic && settings.automaticSchedule !== false) return;
     const nextStatus = target?.status === 'open' ? 'closed' : 'open';
     updateRounds(rounds.map((round) => ({
       ...round,
@@ -305,10 +308,20 @@ const BanquigerAdminPage = () => {
     });
   };
 
-  const markScored = (roundId) => updateRounds(
-    rounds.map((round) => (round.id === roundId ? { ...round, scored: !round.scored } : round)),
-    'Estado de puntuación actualizado.',
-  );
+  const markScored = async (roundId) => {
+    const target = rounds.find((round) => round.id === roundId);
+    if (target?.automatic && !target.scored) {
+      const data = await loadBanquigerMatchData();
+      const match = data.matches.find((item) => item.id === target.matchId);
+      if (Date.now() < Date.parse(target.deadline) || !match?.result
+        || !data.gameStats.some((stat) => stat.matchId === target.matchId)) {
+        setNotice('Publica primero el resultado y las estadísticas oficiales del partido.');
+        return;
+      }
+    }
+    updateRounds(rounds.map((round) => round.id === roundId ? { ...round, scored: !round.scored } : round),
+      'Estado de puntuación actualizado. El calendario avanzará a la siguiente jornada disponible.');
+  };
 
   const recalculatePrices = () => {
     resetStoredBanquigerMarketState();
@@ -406,9 +419,10 @@ const BanquigerAdminPage = () => {
 
           <section className="mb-6 rounded-xl border border-white/10 bg-[#111]/90 p-5">
             <div className="mb-5 flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase text-[hsl(43_65%_52%)]">Reglas activas</p><h2 className="text-xl font-black">Configuración del juego</h2></div><button type="button" onClick={saveSettings} className="inline-flex items-center gap-2 rounded-lg bg-[hsl(43_65%_52%)] px-4 py-2.5 text-xs font-black uppercase text-black"><Save size={15} /> Guardar</button></div>
+            <label className="mb-4 flex items-center gap-3 text-sm font-bold text-gray-300"><input type="checkbox" checked={settings.automaticSchedule !== false} onChange={(event) => setSettings({ ...settings, automaticSchedule: event.target.checked })} /> Seguir automáticamente el calendario masculino 2026/2027</label>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Jornada actual</span><input className={inputClass} value={settings.currentRound} onChange={(e) => setSettings({ ...settings, currentRound: e.target.value })} /></label>
-              <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Estado del mercado</span><select className={inputClass} value={settings.marketStatus} onChange={(e) => setSettings({ ...settings, marketStatus: e.target.value })}><option value="open">Abierto</option><option value="closed">Cerrado</option></select></label>
+              <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Jornada actual</span><input className={inputClass} disabled={settings.automaticSchedule !== false} value={settings.currentRound} onChange={(e) => setSettings({ ...settings, currentRound: e.target.value })} /></label>
+              <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Estado del mercado</span><select className={inputClass} disabled={settings.automaticSchedule !== false} value={settings.marketStatus} onChange={(e) => setSettings({ ...settings, marketStatus: e.target.value })}><option value="open">Abierto</option><option value="closed">Cerrado</option></select></label>
               <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Presupuesto (M)</span><input className={inputClass} type="number" step="0.5" value={settings.budget} onChange={(e) => setSettings({ ...settings, budget: e.target.value })} /></label>
               <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Tamaño plantilla</span><input className={inputClass} type="number" value={settings.teamSize} onChange={(e) => setSettings({ ...settings, teamSize: e.target.value })} /></label>
               <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Multiplicador titular</span><input className={inputClass} type="number" step="0.1" value={settings.starterNonPointMultiplier} onChange={(e) => setSettings({ ...settings, starterNonPointMultiplier: e.target.value })} /></label>
@@ -439,10 +453,10 @@ const BanquigerAdminPage = () => {
                   <div key={round.id} className="flex flex-col gap-4 rounded-xl border border-white/10 bg-black/25 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-start gap-3">
                       <span className={`rounded-lg p-2 ${round.status === 'open' ? 'bg-green-500/10 text-green-300' : 'bg-white/5 text-gray-500'}`}>{round.status === 'open' ? <Clock3 size={18} /> : <LockKeyhole size={18} />}</span>
-                      <div><strong>{round.name}</strong><p className="mt-1 text-xs text-gray-500">Cierre: {round.deadline ? new Date(round.deadline).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }) : 'Sin fecha'}</p><p className={`mt-1 text-xs font-bold ${round.scored ? 'text-green-300' : 'text-amber-300'}`}>{round.scored ? 'Puntuación publicada' : 'Pendiente de puntuar'}</p></div>
+                      <div><strong>{round.name}</strong>{round.matchId && <p className="mt-1 text-xs text-gray-400">vs {round.rival} · {round.venue} · {round.status === 'scheduled' ? 'Programada' : round.status === 'open' ? 'Mercado abierto' : 'Mercado cerrado'}</p>}<p className="mt-1 text-xs text-gray-500">Cierre: {round.deadline ? new Date(round.deadline).toLocaleString('es-ES', { timeZone: 'Europe/Madrid', dateStyle: 'medium', timeStyle: 'short' }) : 'Sin fecha'}</p><p className={`mt-1 text-xs font-bold ${round.scored ? 'text-green-300' : 'text-amber-300'}`}>{round.scored ? 'Puntuación publicada' : 'Pendiente de puntuar'}</p></div>
                     </div>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => toggleRound(round.id)} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black uppercase hover:border-[hsl(43_65%_52%)]">{round.status === 'open' ? 'Cerrar' : 'Abrir'}</button>
+                      <button type="button" disabled={round.automatic && settings.automaticSchedule !== false} onClick={() => toggleRound(round.id)} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black uppercase hover:border-[hsl(43_65%_52%)]">{round.status === 'open' ? 'Cerrar' : 'Abrir'}</button>
                       <button type="button" onClick={() => markScored(round.id)} className={`rounded-lg px-3 py-2 text-xs font-black uppercase ${round.scored ? 'bg-green-500/10 text-green-300' : 'bg-white/5 text-gray-300'}`}><CheckCircle2 size={15} className="inline" /> {round.scored ? 'Publicada' : 'Publicar'}</button>
                     </div>
                   </div>

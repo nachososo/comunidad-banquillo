@@ -28,6 +28,8 @@ import { useAuth } from '@/auth/AuthContext.jsx';
 import { allPlayers, matches, playerAdvancedStats, playerGameStats } from '@/data/data.js';
 import { getRebounds, getValuation, parseMadeAttempt } from '@/utils/statCalculations.js';
 import { applyBanquigerPricing } from '@/utils/banquigerPricing.js';
+import { BANQUIGER_SEASON, mergeBanquigerCalendarRounds, resolveBanquigerSchedule } from '@/utils/banquigerSchedule.js';
+import { useBanquigerSchedule } from '@/hooks/useBanquigerSchedule.js';
 import {
   getStoredBanquigerPlayers,
   getStoredBanquigerMarketState,
@@ -35,6 +37,7 @@ import {
   getStoredBanquigerPowerState,
   getStoredBanquigerSettings,
   getStoredBanquigerRounds,
+  saveStoredBanquigerRounds,
   saveStoredBanquigerSettings,
   saveStoredBanquigerPlayers,
   saveStoredBanquigerPowers,
@@ -43,7 +46,9 @@ import {
 } from '@/utils/banquigerStorage.js';
 import {
   GAME_DATA_KEYS,
+  loadGameDocument,
   loadBanquigerBundle,
+  loadBanquigerMatchData,
   loadBanquigerTeam,
   loadBanquigerTeams,
   loadUserGameDocument,
@@ -180,15 +185,16 @@ const buildLineup = (selectedPlayers) => {
   };
 };
 
-export const buildPlayerMarket = () => {
-  const advancedByGame = new Map(playerAdvancedStats.map((stat) => [`${stat.matchId}-${stat.playerId}`, stat]));
-  const gameStatsByGame = new Map(playerGameStats.map((stat) => [`${stat.matchId}-${stat.playerId}`, stat]));
-  const publishedMatches = matches
-    .filter((match) => match.team === 'masculine' && match.season === '2025-2026' && match.result)
+export const buildPlayerMarket = (matchData = { matches, gameStats: playerGameStats, advancedStats: playerAdvancedStats }) => {
+  const { matches: calendarMatches, gameStats, advancedStats } = matchData;
+  const advancedByGame = new Map(advancedStats.map((stat) => [`${stat.matchId}-${stat.playerId}`, stat]));
+  const gameStatsByGame = new Map(gameStats.map((stat) => [`${stat.matchId}-${stat.playerId}`, stat]));
+  const publishedMatches = calendarMatches
+    .filter((match) => match.team === 'masculine' && match.season === BANQUIGER_SEASON && match.result && gameStats.some((stat) => stat.matchId === match.id))
     .sort((first, second) => String(first.date).localeCompare(String(second.date)));
 
   const players = allPlayers.map((player) => {
-    const playerGames = playerGameStats.filter((stat) => stat.playerId === player.id);
+    const playerGames = gameStats.filter((stat) => stat.playerId === player.id);
     const valuations = playerGames.map((gameStat) =>
       getBaseValuation(gameStat, advancedByGame.get(`${gameStat.matchId}-${player.id}`)),
     );
@@ -268,12 +274,12 @@ export const buildPlayerMarket = () => {
   });
 };
 
-const getMatchPlayerRows = (matchId, marketPlayers) => {
+const getMatchPlayerRows = (matchId, marketPlayers, matchData) => {
   const advancedByPlayer = new Map(
-    playerAdvancedStats.filter((stat) => stat.matchId === matchId).map((stat) => [stat.playerId, stat]),
+    matchData.advancedStats.filter((stat) => stat.matchId === matchId).map((stat) => [stat.playerId, stat]),
   );
   const gameByPlayer = new Map(
-    playerGameStats.filter((stat) => stat.matchId === matchId).map((stat) => [stat.playerId, stat]),
+    matchData.gameStats.filter((stat) => stat.matchId === matchId).map((stat) => [stat.playerId, stat]),
   );
 
   return marketPlayers.map((player) => {
@@ -433,16 +439,19 @@ const BanquigerPage = () => {
   const location = useLocation();
   const { loading: authLoading, isAuthenticated, user } = useAuth();
   const isDashboard = location.pathname.includes('/panel');
-  const teamStorageKey = `${STORAGE_KEY}:${user?.id || 'guest'}`;
-  const [settings, setSettings] = useState(() => getStoredBanquigerSettings());
+  const teamStorageKey = `${STORAGE_KEY}:${BANQUIGER_SEASON}:${user?.id || 'guest'}`;
+  const [storedSettings, setSettings] = useState(() => getStoredBanquigerSettings());
+  const [rounds, setRounds] = useState(() => getStoredBanquigerRounds());
+  const { settings, currentRound } = useBanquigerSchedule(storedSettings, rounds);
+  const [matchData, setMatchData] = useState(() => ({ matches, gameStats: playerGameStats, advancedStats: playerAdvancedStats }));
   const [marketPlayers, setMarketPlayers] = useState(() => getStoredBanquigerPlayers(buildPlayerMarket()));
   const budget = settings.budget;
   const teamSize = settings.teamSize;
   const seasonMatches = useMemo(
-    () => matches
-      .filter((match) => match.team === 'masculine' && match.season === '2025-2026' && match.result)
+    () => matchData.matches
+      .filter((match) => match.team === 'masculine' && match.season === BANQUIGER_SEASON && match.result && matchData.gameStats.some((stat) => stat.matchId === match.id))
       .sort((first, second) => String(first.date).localeCompare(String(second.date))),
-    [],
+    [matchData],
   );
   const latestPublishedMatch = seasonMatches.at(-1) || null;
   const [managerName, setManagerName] = useState('');
@@ -481,6 +490,7 @@ const BanquigerPage = () => {
     ]).then(([bundle, userPowerState]) => {
       if (!active) return;
       setSettings(saveStoredBanquigerSettings(bundle.settings));
+      setRounds(saveStoredBanquigerRounds(bundle.rounds));
       saveStoredBanquigerPlayers(bundle.players);
       setPowers(saveStoredBanquigerPowers(bundle.powers));
       setPowerState(saveStoredBanquigerPowerState(userPowerState.data));
@@ -492,7 +502,10 @@ const BanquigerPage = () => {
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
-    const savedTeam = window.localStorage.getItem(teamStorageKey) || window.localStorage.getItem(STORAGE_KEY);
+    let active = true;
+    setSelectedIds([]);
+    setTeamName('Mi Banquiger');
+    const savedTeam = window.localStorage.getItem(teamStorageKey);
     if (savedTeam) {
       try {
         const parsed = JSON.parse(savedTeam);
@@ -504,12 +517,13 @@ const BanquigerPage = () => {
       }
     }
     loadBanquigerTeam(user.id).then((team) => {
-      if (!team) return;
+      if (!active || !team) return;
       setManagerName(team.manager_name || user.name || 'Manager');
       setTeamName(team.name || 'Mi Banquiger');
       setSelectedIds(Array.isArray(team.selected_ids) ? team.selected_ids.map(String) : []);
     });
-  }, [isAuthenticated, seasonMatches, teamStorageKey, user]);
+    return () => { active = false; };
+  }, [isAuthenticated, teamStorageKey, user?.id]);
 
   useEffect(() => {
     if (user?.name) setManagerName(user.name);
@@ -532,13 +546,33 @@ const BanquigerPage = () => {
     return () => { active = false; };
   }, [isAuthenticated, user?.id]);
 
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      const [data, settingsDoc, roundsDoc] = await Promise.all([
+        loadBanquigerMatchData(),
+        loadGameDocument(GAME_DATA_KEYS.banquigerSettings, getStoredBanquigerSettings()),
+        loadGameDocument(GAME_DATA_KEYS.banquigerRounds, getStoredBanquigerRounds()),
+      ]);
+      if (!active) return;
+      setMatchData(data);
+      setRounds(saveStoredBanquigerRounds(mergeBanquigerCalendarRounds(roundsDoc.data)));
+      setSettings(saveStoredBanquigerSettings(settingsDoc.data));
+      setMarketPlayers(getStoredBanquigerPlayers(buildPlayerMarket(data)));
+    };
+    void refresh();
+    const timer = window.setInterval(refresh, 60000);
+    window.addEventListener('focus', refresh);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, []);
+
   const selectedPlayers = useMemo(
     () => selectedIds.map((id) => marketPlayers.find((player) => player.id === id)).filter(Boolean),
     [marketPlayers, selectedIds],
   );
   const matchRows = useMemo(
-    () => getMatchPlayerRows(latestPublishedMatch?.id, marketPlayers),
-    [latestPublishedMatch?.id, marketPlayers],
+    () => getMatchPlayerRows(latestPublishedMatch?.id, marketPlayers, matchData),
+    [latestPublishedMatch?.id, marketPlayers, matchData],
   );
   const rowsByPlayer = useMemo(() => new Map(matchRows.map((row) => [row.player.id, row])), [matchRows]);
   const { startersByPosition, starterPlayers, benchPlayers } = useMemo(
@@ -594,7 +628,7 @@ const BanquigerPage = () => {
     });
   const missingStarterPositions = STARTER_POSITIONS.filter((position) => !startersByPosition[position]);
   const startersComplete = missingStarterPositions.length === 0;
-  const canSave = selectedIds.length === teamSize && startersComplete && remainingBudget >= 0;
+  const canSave = settings.marketStatus === 'open' && selectedIds.length === teamSize && startersComplete && remainingBudget >= 0;
   const baseLeaderboard = registeredTeams.map((team) => {
     const current = team.user_id === user?.id;
     return {
@@ -659,7 +693,8 @@ const BanquigerPage = () => {
       teamName: nextTeamName,
       budget,
       selectedIds: nextSelectedIds,
-      selectedMatchId: latestPublishedMatch?.id,
+      selectedMatchId: currentRound?.matchId,
+      season: BANQUIGER_SEASON,
     }).then(({ data }) => {
       if (!data) return;
       setRegisteredTeams((currentTeams) => {
@@ -684,6 +719,7 @@ const BanquigerPage = () => {
   };
 
   const togglePlayer = (player) => {
+    if (resolveBanquigerSchedule(storedSettings, rounds).settings.marketStatus !== 'open') return;
     setSaved(false);
     setSelectedIds((currentIds) => {
       let nextIds;
@@ -719,11 +755,13 @@ const BanquigerPage = () => {
   };
 
   const saveTeam = () => {
+    if (resolveBanquigerSchedule(storedSettings, rounds).settings.marketStatus !== 'open') return;
     persistTeam();
     setSaved(true);
   };
 
   const resetTeam = () => {
+    if (resolveBanquigerSchedule(storedSettings, rounds).settings.marketStatus !== 'open') return;
     setSelectedIds([]);
     setSaved(false);
     window.localStorage.removeItem(teamStorageKey);
@@ -736,6 +774,7 @@ const BanquigerPage = () => {
     .filter((item) => item.power);
 
   const usePower = (card) => {
+    if (resolveBanquigerSchedule(storedSettings, rounds).settings.marketStatus !== 'open') return;
     const power = card.power;
     const targetTeamId = power.type === 'positive' ? 'local-team' : powerTargetTeamId;
     if (!targetTeamId || !powerTargetPlayerId) {
@@ -1051,11 +1090,11 @@ const BanquigerPage = () => {
             const starterPositionFilled = Boolean(startersByPosition[player.position]);
             const blockedByLineup = starterPositionFilled && !startersComplete;
             const canBuy =
-              selected ||
-              (settings.marketStatus === 'open' &&
+              settings.marketStatus === 'open' && (selected ||
+              (
                 selectedIds.length < teamSize &&
                 remainingBudget >= player.price &&
-                !blockedByLineup);
+                !blockedByLineup));
 
             return (
               <article
@@ -1335,6 +1374,7 @@ const BanquigerPage = () => {
                 <div>
                   <p className="text-xs font-bold uppercase text-[hsl(43_65%_52%)]">
                     {settings.currentRound} · {settings.marketStatus === 'open' ? 'Mercado abierto' : 'Mercado cerrado'}
+                    {currentRound && <span className="mt-1 block text-xs font-medium normal-case text-gray-400">vs {currentRound.rival} · {new Date(currentRound.deadline).toLocaleString('es-ES', { timeZone: 'Europe/Madrid', dateStyle: 'short', timeStyle: 'short' })} · {currentRound.venue}</span>}
                   </p>
                   <h1 className="mt-1 text-3xl font-black leading-none text-white md:text-5xl">{teamName}</h1>
                   <p className="mt-2 text-xs font-bold uppercase text-gray-500">{managerName || 'Manager invitado'}</p>

@@ -94,6 +94,11 @@ const AccountPage = () => {
             </article>
 
             <div className="grid gap-4">
+              <Link to="/adn-banquiller" className="rounded-xl border border-[hsl(43_65%_52%_/_0.3)] bg-[#111]/90 p-5 transition hover:border-[hsl(43_65%_52%)]">
+                <p className="text-xs font-black uppercase text-[hsl(43_65%_52%)]">ADN Banquiller</p>
+                <h2 className="mt-2 text-xl font-black text-white">Jugar una carrera</h2>
+                <p className="mt-2 text-sm text-gray-400">De los 17 a los 40 años, empezando en el equipo municipal de tu primo. Sin registro ni guardado.</p>
+              </Link>
               <Link
                 to="/banquiger/panel"
                 className="rounded-xl border border-[hsl(43_65%_52%_/_0.18)] bg-[#111]/90 p-5 transition hover:border-[hsl(43_65%_52%_/_0.6)]"

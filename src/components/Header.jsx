@@ -19,6 +19,7 @@ const Header = () => {
     { path: '/contacto', label: 'Contacto', mobileLabel: 'Ponte en contacto con nosotros' },
     { path: isAuthenticated ? '/banquiger/panel' : '/banquiger', label: 'Banquiger' },
     { path: '/18-0', label: '18-0' },
+    { path: '/adn-banquiller', label: 'Modo carrera' },
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -42,7 +43,7 @@ const Header = () => {
             />
           </Link>
 
-          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-3 lg:flex xl:gap-4 2xl:gap-6">
+          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-3 2xl:flex 2xl:gap-4">
             {navLinks.map((link) => (
               <Link
                 key={link.path}
@@ -61,7 +62,7 @@ const Header = () => {
             ))}
           </nav>
 
-          <div className="hidden shrink-0 items-center gap-2 lg:flex">
+          <div className="hidden shrink-0 items-center gap-2 2xl:flex">
             {isAdmin && (
               <Link
                 to="/panel-control"
@@ -91,7 +92,7 @@ const Header = () => {
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden text-[hsl(43_65%_52%)] p-2 hover:bg-white/5 rounded-lg transition-smooth"
+            className="2xl:hidden ml-auto text-[hsl(43_65%_52%)] p-2 hover:bg-white/5 rounded-lg transition-smooth"
             aria-label="Abrir menú"
             aria-expanded={mobileMenuOpen}
           >
@@ -100,7 +101,7 @@ const Header = () => {
         </div>
 
         {mobileMenuOpen && (
-          <nav className="lg:hidden py-4 border-t border-[hsl(43_65%_52%_/_0.2)]">
+          <nav className="2xl:hidden py-4 border-t border-[hsl(43_65%_52%_/_0.2)]">
             {navLinks.map((link) => (
               <Link
                 key={link.path}

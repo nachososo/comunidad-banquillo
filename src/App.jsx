@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes, BrowserRouter as Router } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import HomePage from './pages/HomePage';
@@ -34,6 +34,10 @@ import NewsAdminPage from './pages/NewsAdminPage';
 import { AuthProvider } from './auth/AuthContext.jsx';
 import AnalyticsTracker from './components/AnalyticsTracker.jsx';
 
+const CareerPage = lazy(() => import('./pages/CareerPage.jsx'));
+const CareerAdminPage = lazy(() => import('./pages/CareerAdminPage.jsx'));
+const careerFallback = <div role="status" className="min-h-screen grid place-items-center text-[hsl(43_65%_52%)]">Cargando ADN Banquiller…</div>;
+
 function App() {
   return (
     <AuthProvider>
@@ -54,6 +58,7 @@ function App() {
           <Route path="/banquiger" element={<BanquigerPage />} />
           <Route path="/banquiger/panel" element={<BanquigerPage />} />
           <Route path="/18-0" element={<EighteenZeroPage />} />
+          <Route path="/adn-banquiller" element={<Suspense fallback={careerFallback}><CareerPage /></Suspense>} />
           <Route path="/app-estadisticas" element={<StatsCapturePage />} />
           <Route path="/estadisticas" element={<Navigate to="/app-estadisticas" replace />} />
           <Route path="/login" element={<LoginPage />} />
@@ -69,6 +74,7 @@ function App() {
           <Route path="/panel-control/estadisticas" element={<StatsAdminPage />} />
           <Route path="/panel-control/toma-estadisticas" element={<StatsCaptureAdminPage />} />
           <Route path="/panel-control/18-0" element={<EighteenZeroAdminPage />} />
+          <Route path="/panel-control/adn-banquiller" element={<Suspense fallback={careerFallback}><CareerAdminPage /></Suspense>} />
           <Route path="/panel-control/banquiger" element={<BanquigerAdminPage />} />
           <Route path="/panel-control/mensajes" element={<ContactAdminPage />} />
           <Route path="/panel-control/:moduleId" element={<ControlPanelModulePage />} />
