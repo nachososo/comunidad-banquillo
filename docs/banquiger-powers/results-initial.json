@@ -1,0 +1,609 @@
+{
+  "seed": 20261012,
+  "leagues": 5000,
+  "managers": 10,
+  "individualEvaluations": 480000,
+  "trainingMatches": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    9,
+    11
+  ],
+  "validationMatches": [
+    12,
+    14,
+    15,
+    18,
+    19,
+    20
+  ],
+  "baseline": {
+    "mean": 27.41682,
+    "median": 27,
+    "p95": 64
+  },
+  "cards": [
+    {
+      "id": "c1",
+      "name": "Grito de la grada",
+      "tier": "common",
+      "sign": "+",
+      "cap": 6,
+      "description": "Un jugador propio que dispute minutos recibe +6 puntos.",
+      "meanImpact": 4.7464,
+      "p95": 6,
+      "zeroPercent": 20.893333333333334,
+      "improvePercent": 55.15333333333333,
+      "meanPlaces": 1.0216666666666667
+    },
+    {
+      "id": "c2",
+      "name": "Red de seguridad",
+      "tier": "common",
+      "sign": "+",
+      "cap": 6,
+      "description": "Una valoración negativa propia se convierte en 0; hasta +6.",
+      "meanImpact": 0.7078666666666666,
+      "p95": 6,
+      "zeroPercent": 82.42,
+      "improvePercent": 9.326666666666666,
+      "meanPlaces": 0.14486666666666667
+    },
+    {
+      "id": "c3",
+      "name": "Pase extra",
+      "tier": "common",
+      "sign": "+",
+      "cap": 6,
+      "description": "+1 punto por asistencia de un jugador propio; máximo +6.",
+      "meanImpact": 1.0214666666666667,
+      "p95": 5,
+      "zeroPercent": 58.85333333333334,
+      "improvePercent": 15.64,
+      "meanPlaces": 0.21093333333333333
+    },
+    {
+      "id": "c4",
+      "name": "Dueño del rebote",
+      "tier": "common",
+      "sign": "+",
+      "cap": 6,
+      "description": "+1 punto por rebote de un jugador propio; máximo +6.",
+      "meanImpact": 4.2552,
+      "p95": 6,
+      "zeroPercent": 20.893333333333334,
+      "improvePercent": 51.6,
+      "meanPlaces": 0.9059333333333334
+    },
+    {
+      "id": "c5",
+      "name": "Mano encima",
+      "tier": "common",
+      "sign": "-",
+      "cap": 6,
+      "description": "Un jugador rival pierde el 10% de su puntuación positiva; máximo 6.",
+      "meanImpact": 1.4564466666664928,
+      "p95": 3.3000000000000003,
+      "zeroPercent": 31.819999999999997,
+      "improvePercent": 2.5733333333333333,
+      "meanPlaces": 0.025733333333333334
+    },
+    {
+      "id": "c6",
+      "name": "Línea vigilada",
+      "tier": "common",
+      "sign": "-",
+      "cap": 6,
+      "description": "Un jugador rival pierde 1 punto por triple anotado; máximo 6.",
+      "meanImpact": 0.3690800000000002,
+      "p95": 2,
+      "zeroPercent": 74.59333333333333,
+      "improvePercent": 0.48,
+      "meanPlaces": 0.0048
+    },
+    {
+      "id": "c7",
+      "name": "Cortar el pase",
+      "tier": "common",
+      "sign": "-",
+      "cap": 6,
+      "description": "Un jugador rival pierde 1 punto por asistencia; máximo 6.",
+      "meanImpact": 2.1854,
+      "p95": 6,
+      "zeroPercent": 32.07333333333333,
+      "improvePercent": 4.02,
+      "meanPlaces": 0.0402
+    },
+    {
+      "id": "c8",
+      "name": "Banquillo frío",
+      "tier": "common",
+      "sign": "-",
+      "cap": 6,
+      "description": "Un suplente rival pierde el 20% de su puntuación positiva; máximo 6.",
+      "meanImpact": 1.553773333333348,
+      "p95": 4.6000000000000005,
+      "zeroPercent": 39.32666666666667,
+      "improvePercent": 2.8133333333333335,
+      "meanPlaces": 0.028133333333333333
+    },
+    {
+      "id": "r1",
+      "name": "Turbo",
+      "tier": "rare",
+      "sign": "+",
+      "cap": 10,
+      "description": "Un jugador propio suma el 25% de su puntuación positiva; máximo +10.",
+      "meanImpact": 2.2314333333333334,
+      "p95": 6,
+      "zeroPercent": 46.053333333333335,
+      "improvePercent": 28.133333333333333,
+      "meanPlaces": 0.44593333333333335
+    },
+    {
+      "id": "r2",
+      "name": "Sexto hombre",
+      "tier": "rare",
+      "sign": "+",
+      "cap": 10,
+      "description": "Un suplente propio recibe el bonus de titular sobre su valoración sin puntos; máximo +10.",
+      "meanImpact": 0.604,
+      "p95": 5,
+      "zeroPercent": 82.46666666666667,
+      "improvePercent": 7.359999999999999,
+      "meanPlaces": 0.1088
+    },
+    {
+      "id": "r3",
+      "name": "Segunda oportunidad",
+      "tier": "rare",
+      "sign": "+",
+      "cap": 10,
+      "description": "Devuelve las penalizaciones por tiros fallados de un jugador propio; máximo +10.",
+      "meanImpact": 5.897866666666666,
+      "p95": 10,
+      "zeroPercent": 25.28666666666667,
+      "improvePercent": 54.89333333333334,
+      "meanPlaces": 1.1603333333333334
+    },
+    {
+      "id": "r4",
+      "name": "Pareja conectada",
+      "tier": "rare",
+      "sign": "+",
+      "cap": 10,
+      "description": "Dos jugadores propios suman el 15% de sus puntuaciones positivas; máximo +10 conjunto.",
+      "meanImpact": 1.9263100000000297,
+      "p95": 4.95,
+      "zeroPercent": 26.586666666666662,
+      "improvePercent": 27.566666666666666,
+      "meanPlaces": 0.37906666666666666
+    },
+    {
+      "id": "r5",
+      "name": "Defensa pegajosa",
+      "tier": "rare",
+      "sign": "-",
+      "cap": 10,
+      "description": "Un jugador rival pierde el 25% de su puntuación positiva; máximo 10.",
+      "meanImpact": 3.6411166666666666,
+      "p95": 8.25,
+      "zeroPercent": 31.819999999999997,
+      "improvePercent": 6.673333333333334,
+      "meanPlaces": 0.06673333333333334
+    },
+    {
+      "id": "r6",
+      "name": "Dos contra uno",
+      "tier": "rare",
+      "sign": "-",
+      "cap": 10,
+      "description": "Dos jugadores de un rival pierden el 15% de sus puntuaciones positivas; máximo 10 conjunto.",
+      "meanImpact": 3.078470000000164,
+      "p95": 7.049999999999999,
+      "zeroPercent": 16.773333333333333,
+      "improvePercent": 5.933333333333334,
+      "meanPlaces": 0.059333333333333335
+    },
+    {
+      "id": "r7",
+      "name": "Sin manos rápidas",
+      "tier": "rare",
+      "sign": "-",
+      "cap": 10,
+      "description": "Un jugador rival pierde los puntos por robos y tapones, incluido x2 de titular; máximo 10.",
+      "meanImpact": 2.9348666666666645,
+      "p95": 10,
+      "zeroPercent": 32,
+      "improvePercent": 5.46,
+      "meanPlaces": 0.0546
+    },
+    {
+      "id": "r8",
+      "name": "Fuego cruzado",
+      "tier": "rare",
+      "sign": "-",
+      "cap": 10,
+      "description": "Un jugador de cada uno de dos rivales pierde el 10%; máximo 10 entre ambos.",
+      "meanImpact": 2.96814666666648,
+      "p95": 6.600000000000001,
+      "zeroPercent": 31.42666666666667,
+      "improvePercent": 5.193333333333333,
+      "meanPlaces": 0.05386666666666667
+    },
+    {
+      "id": "e1",
+      "name": "Modo héroe",
+      "tier": "epic",
+      "sign": "+",
+      "cap": 16,
+      "description": "Un jugador propio suma el 50% de su puntuación positiva; máximo +16.",
+      "meanImpact": 4.442933333333333,
+      "p95": 12,
+      "zeroPercent": 46.053333333333335,
+      "improvePercent": 37.480000000000004,
+      "meanPlaces": 0.8167333333333333
+    },
+    {
+      "id": "e2",
+      "name": "Dúo eléctrico",
+      "tier": "epic",
+      "sign": "+",
+      "cap": 16,
+      "description": "Dos jugadores propios suman el 30% de sus puntuaciones positivas; máximo +16 conjunto.",
+      "meanImpact": 3.8526200000000594,
+      "p95": 9.9,
+      "zeroPercent": 26.586666666666662,
+      "improvePercent": 41.32666666666667,
+      "meanPlaces": 0.7310666666666666
+    },
+    {
+      "id": "e3",
+      "name": "Juego colectivo",
+      "tier": "epic",
+      "sign": "+",
+      "cap": 16,
+      "description": "Duplica los puntos por rebotes y asistencias de un jugador propio, incluido x2; máximo +16.",
+      "meanImpact": 11.132533333333333,
+      "p95": 16,
+      "zeroPercent": 20.893333333333334,
+      "improvePercent": 69.78,
+      "meanPlaces": 2.0534666666666666
+    },
+    {
+      "id": "e4",
+      "name": "Revulsivo",
+      "tier": "epic",
+      "sign": "+",
+      "cap": 16,
+      "description": "Un suplente propio duplica su puntuación positiva; máximo +16.",
+      "meanImpact": 3.384733333333333,
+      "p95": 15,
+      "zeroPercent": 59.42666666666667,
+      "improvePercent": 27.726666666666667,
+      "meanPlaces": 0.5692
+    },
+    {
+      "id": "e5",
+      "name": "Marcaje especial",
+      "tier": "epic",
+      "sign": "-",
+      "cap": 16,
+      "description": "Un jugador rival pierde la mitad de su puntuación positiva; máximo 16.",
+      "meanImpact": 7.236633333333334,
+      "p95": 16,
+      "zeroPercent": 31.819999999999997,
+      "improvePercent": 13.426666666666668,
+      "meanPlaces": 0.13426666666666667
+    },
+    {
+      "id": "e6",
+      "name": "Triángulo defensivo",
+      "tier": "epic",
+      "sign": "-",
+      "cap": 16,
+      "description": "Tres jugadores de un rival pierden el 20%; máximo 16 conjunto.",
+      "meanImpact": 5.050053333333045,
+      "p95": 10.600000000000001,
+      "zeroPercent": 7.553333333333333,
+      "improvePercent": 9.633333333333335,
+      "meanPlaces": 0.09633333333333334
+    },
+    {
+      "id": "e7",
+      "name": "Doble presión",
+      "tier": "epic",
+      "sign": "-",
+      "cap": 16,
+      "description": "Un jugador de cada uno de dos rivales pierde el 20%; máximo 16 conjunto.",
+      "meanImpact": 5.93629333333296,
+      "p95": 13.200000000000003,
+      "zeroPercent": 31.42666666666667,
+      "improvePercent": 10.4,
+      "meanPlaces": 0.11113333333333333
+    },
+    {
+      "id": "e8",
+      "name": "Sin galones",
+      "tier": "epic",
+      "sign": "-",
+      "cap": 16,
+      "description": "Un titular rival pierde solo su bonus x2 de valoración sin puntos; máximo 16.",
+      "meanImpact": 3.208066666666667,
+      "p95": 11,
+      "zeroPercent": 38.96666666666667,
+      "improvePercent": 5.866666666666666,
+      "meanPlaces": 0.058666666666666666
+    },
+    {
+      "id": "l1",
+      "name": "Capitán de remontada",
+      "tier": "legendary",
+      "sign": "+",
+      "cap": 24,
+      "description": "Un jugador propio duplica su puntuación positiva; máximo +24.",
+      "meanImpact": 8.566933333333333,
+      "p95": 24,
+      "zeroPercent": 46.053333333333335,
+      "improvePercent": 44.03333333333334,
+      "meanPlaces": 1.3724666666666667
+    },
+    {
+      "id": "l2",
+      "name": "Todos a una",
+      "tier": "legendary",
+      "sign": "+",
+      "cap": 24,
+      "description": "La plantilla propia suma el 20% de las puntuaciones positivas; máximo +24 total.",
+      "meanImpact": 5.494559999999969,
+      "p95": 12.000000000000002,
+      "zeroPercent": 2.9000000000000004,
+      "improvePercent": 57.48,
+      "meanPlaces": 1.0149333333333332
+    },
+    {
+      "id": "l3",
+      "name": "Socios imparables",
+      "tier": "legendary",
+      "sign": "+",
+      "cap": 24,
+      "description": "Dos jugadores propios suman el 50% de sus puntuaciones positivas; máximo +24 conjunto.",
+      "meanImpact": 6.4208,
+      "p95": 16.5,
+      "zeroPercent": 26.586666666666662,
+      "improvePercent": 49.97333333333333,
+      "meanPlaces": 1.1014
+    },
+    {
+      "id": "l4",
+      "name": "Cambio maestro",
+      "tier": "legendary",
+      "sign": "+",
+      "cap": 24,
+      "description": "Reemplaza automáticamente al titular señalado por el mejor suplente si mejora el resultado; máximo +24.",
+      "meanImpact": 1.4696,
+      "p95": 7,
+      "zeroPercent": 68.57333333333332,
+      "improvePercent": 17.04,
+      "meanPlaces": 0.2926666666666667
+    },
+    {
+      "id": "l5",
+      "name": "Candado",
+      "tier": "legendary",
+      "sign": "-",
+      "cap": 24,
+      "description": "Un jugador rival pierde el 60% de su puntuación positiva; máximo 24.",
+      "meanImpact": 8.738680000001157,
+      "p95": 19.8,
+      "zeroPercent": 31.819999999999997,
+      "improvePercent": 16.086666666666666,
+      "meanPlaces": 0.16086666666666666
+    },
+    {
+      "id": "l6",
+      "name": "Zona asfixiante",
+      "tier": "legendary",
+      "sign": "-",
+      "cap": 24,
+      "description": "La plantilla de un rival pierde el 15% de las puntuaciones positivas; máximo 24 total.",
+      "meanImpact": 5.5756799999999656,
+      "p95": 11.1,
+      "zeroPercent": 2.2266666666666666,
+      "improvePercent": 10.193333333333333,
+      "meanPlaces": 0.10193333333333333
+    },
+    {
+      "id": "l7",
+      "name": "Presión en tres pistas",
+      "tier": "legendary",
+      "sign": "-",
+      "cap": 24,
+      "description": "Un jugador de cada uno de tres rivales pierde el 15%; máximo 24 entre todos.",
+      "meanImpact": 6.624490000000347,
+      "p95": 14.849999999999998,
+      "zeroPercent": 29.713333333333335,
+      "improvePercent": 11.1,
+      "meanPlaces": 0.1232
+    },
+    {
+      "id": "l8",
+      "name": "Pareja desconectada",
+      "tier": "legendary",
+      "sign": "-",
+      "cap": 24,
+      "description": "Dos jugadores de un rival pierden la mitad de sus puntuaciones positivas; máximo 24 conjunto.",
+      "meanImpact": 10.261566666666667,
+      "p95": 23.5,
+      "zeroPercent": 16.773333333333333,
+      "improvePercent": 20.453333333333333,
+      "meanPlaces": 0.20453333333333334
+    }
+  ],
+  "mixed": {
+    "positiveGain": 23311.90000000003,
+    "damage": 18783.89999999986,
+    "improved": 3221,
+    "places": 4396,
+    "draws": {
+      "common": 8459,
+      "epic": 1625,
+      "rare": 4418,
+      "legendary": 498
+    },
+    "eligible": 15000,
+    "topRankedAttacked": 1699,
+    "improvePercent": 21.473333333333333,
+    "meanPlaces": 0.29306666666666664,
+    "meanGain": 1.5541266666666687,
+    "meanDamage": 1.2522599999999906
+  },
+  "probabilities": {
+    "8": [
+      64,
+      26,
+      8,
+      2
+    ],
+    "9": [
+      56,
+      30,
+      11,
+      3
+    ],
+    "10": [
+      48,
+      32,
+      15,
+      5
+    ]
+  },
+  "example": {
+    "historicalMatchId": 20,
+    "rival": "Gaychester United BC",
+    "cards": [
+      {
+        "owner": 7,
+        "previousPosition": 8,
+        "card": "Línea vigilada",
+        "sign": "-",
+        "changes": [
+          {
+            "team": 5,
+            "delta": 0
+          }
+        ]
+      },
+      {
+        "owner": 6,
+        "previousPosition": 9,
+        "card": "Modo héroe",
+        "sign": "+",
+        "changes": [
+          {
+            "team": 6,
+            "delta": 12
+          }
+        ]
+      },
+      {
+        "owner": 0,
+        "previousPosition": 10,
+        "card": "Pase extra",
+        "sign": "+",
+        "changes": [
+          {
+            "team": 0,
+            "delta": 5
+          }
+        ]
+      }
+    ],
+    "teams": [
+      {
+        "team": 1,
+        "previousPosition": 10,
+        "baseline": 59,
+        "after": 64,
+        "baselinePosition": 5,
+        "afterPosition": 4
+      },
+      {
+        "team": 2,
+        "previousPosition": 7,
+        "baseline": 65,
+        "after": 65,
+        "baselinePosition": 2,
+        "afterPosition": 3
+      },
+      {
+        "team": 3,
+        "previousPosition": 3,
+        "baseline": 34,
+        "after": 34,
+        "baselinePosition": 10,
+        "afterPosition": 10
+      },
+      {
+        "team": 4,
+        "previousPosition": 2,
+        "baseline": 47,
+        "after": 47,
+        "baselinePosition": 7,
+        "afterPosition": 7
+      },
+      {
+        "team": 5,
+        "previousPosition": 6,
+        "baseline": 60,
+        "after": 60,
+        "baselinePosition": 4,
+        "afterPosition": 6
+      },
+      {
+        "team": 6,
+        "previousPosition": 5,
+        "baseline": 63,
+        "after": 63,
+        "baselinePosition": 3,
+        "afterPosition": 5
+      },
+      {
+        "team": 7,
+        "previousPosition": 9,
+        "baseline": 55,
+        "after": 67,
+        "baselinePosition": 6,
+        "afterPosition": 2
+      },
+      {
+        "team": 8,
+        "previousPosition": 8,
+        "baseline": 39,
+        "after": 39,
+        "baselinePosition": 9,
+        "afterPosition": 9
+      },
+      {
+        "team": 9,
+        "previousPosition": 1,
+        "baseline": 70,
+        "after": 70,
+        "baselinePosition": 1,
+        "afterPosition": 1
+      },
+      {
+        "team": 10,
+        "previousPosition": 4,
+        "baseline": 43,
+        "after": 43,
+        "baselinePosition": 8,
+        "afterPosition": 8
+      }
+    ]
+  }
+}

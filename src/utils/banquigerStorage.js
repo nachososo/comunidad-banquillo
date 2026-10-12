@@ -1,3 +1,4 @@
+import { defaultPowerCatalog, mergePowerCatalog } from './banquigerPowers.js';
 import { BANQUIGER_SEASON, buildBanquigerCalendarRounds, mergeBanquigerCalendarRounds } from './banquigerSchedule.js';
 
 export const BANQUIGER_PLAYERS_STORAGE_KEY = 'banquiger-admin-players-v1';
@@ -26,44 +27,7 @@ export const defaultBanquigerRounds = [
   { id: 'round-0', name: 'Jornada de prueba', deadline: '2026-06-14T18:00', status: 'closed', scored: true },
 ];
 
-export const defaultBanquigerPowers = [
-  {
-    id: 'captain-double',
-    name: 'Capitán de remontada',
-    description: 'Elige un jugador propio: su valoración final se multiplica por 2.',
-    type: 'positive',
-    effect: 'own_double',
-    rarity: 'common',
-    active: true,
-  },
-  {
-    id: 'special-marking',
-    name: 'Marcaje especial',
-    description: 'Elige un jugador rival: su valoración final se divide entre 2.',
-    type: 'negative',
-    effect: 'rival_half',
-    rarity: 'common',
-    active: true,
-  },
-  {
-    id: 'surprise-clause',
-    name: 'Cláusula sorpresa',
-    description: 'Obliga a un rival a vender al jugador que elijas antes de la siguiente jornada.',
-    type: 'negative',
-    effect: 'force_sale',
-    rarity: 'rare',
-    active: true,
-  },
-  {
-    id: 'sixth-man',
-    name: 'Sexto hombre',
-    description: 'Elige un suplente propio para que puntúe como titular durante esta jornada.',
-    type: 'positive',
-    effect: 'bench_as_starter',
-    rarity: 'common',
-    active: true,
-  },
-];
+export const defaultBanquigerPowers = defaultPowerCatalog;
 
 const storageAvailable = () => typeof window !== 'undefined' && Boolean(window.localStorage);
 
@@ -217,29 +181,13 @@ export const resetStoredBanquigerRounds = () => {
   return defaultBanquigerRounds;
 };
 
-const normalizePower = (power = {}) => ({
-  id: String(power.id || `power-${Date.now()}`).trim(),
-  name: String(power.name || 'Nuevo poder').trim(),
-  description: String(power.description || '').trim(),
-  type: power.type === 'negative' ? 'negative' : 'positive',
-  effect: ['own_double', 'rival_half', 'force_sale', 'bench_as_starter'].includes(power.effect)
-    ? power.effect
-    : 'own_double',
-  rarity: power.rarity === 'rare' ? 'rare' : 'common',
-  active: power.active !== false,
-});
-
 export const getStoredBanquigerPowers = (options = {}) => {
-  const stored = readJson(BANQUIGER_POWERS_STORAGE_KEY, defaultBanquigerPowers);
-  const powers = (Array.isArray(stored) ? stored : defaultBanquigerPowers).map(normalizePower);
-  return options.includeInactive ? powers : powers.filter((power) => power.active);
+  const powers = mergePowerCatalog(readJson(BANQUIGER_POWERS_STORAGE_KEY, defaultBanquigerPowers));
+  return options.includeInactive ? powers : powers.filter(power => power.active !== false);
 };
-
 export const saveStoredBanquigerPowers = (powers = []) => {
-  const normalized = powers.map(normalizePower).filter((power) => power.id && power.name);
-  if (storageAvailable()) {
-    window.localStorage.setItem(BANQUIGER_POWERS_STORAGE_KEY, JSON.stringify(normalized));
-  }
+  const normalized = mergePowerCatalog(powers);
+  if (storageAvailable()) window.localStorage.setItem(BANQUIGER_POWERS_STORAGE_KEY, JSON.stringify(normalized));
   return normalized;
 };
 

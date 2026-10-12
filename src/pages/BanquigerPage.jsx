@@ -1,3 +1,5 @@
+import BanquigerPowers from '@/components/BanquigerPowers.jsx';
+import { buildPowerLineup, scorePowerRound } from '@/utils/banquigerPowers.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
@@ -41,7 +43,6 @@ import {
   saveStoredBanquigerSettings,
   saveStoredBanquigerPlayers,
   saveStoredBanquigerPowers,
-  saveStoredBanquigerPowerState,
   saveStoredBanquigerMarketState,
 } from '@/utils/banquigerStorage.js';
 import {
@@ -51,9 +52,10 @@ import {
   loadBanquigerMatchData,
   loadBanquigerTeam,
   loadBanquigerTeams,
-  loadUserGameDocument,
+  loadBanquigerLeague,
+  useBanquigerCard,
+  emptyBanquigerLeague,
   saveBanquigerTeam,
-  saveUserGameDocument,
 } from '@/lib/gameDataRepository.js';
 
 const STORAGE_KEY = 'banquiger-team-v2';
@@ -467,9 +469,7 @@ const BanquigerPage = () => {
   const [viewedRankingTeam, setViewedRankingTeam] = useState(null);
   const [saved, setSaved] = useState(false);
   const [powers, setPowers] = useState(() => getStoredBanquigerPowers());
-  const [powerState, setPowerState] = useState(() => getStoredBanquigerPowerState());
-  const [powerTargetTeamId, setPowerTargetTeamId] = useState('');
-  const [powerTargetPlayerId, setPowerTargetPlayerId] = useState('');
+  const [powerState, setPowerState] = useState(emptyBanquigerLeague);
   const [powerNotice, setPowerNotice] = useState('');
   const [registeredTeams, setRegisteredTeams] = useState([]);
 
@@ -486,14 +486,14 @@ const BanquigerPage = () => {
     };
     Promise.all([
       loadBanquigerBundle(fallbacks),
-      loadUserGameDocument(GAME_DATA_KEYS.banquigerPowerState, fallbacks.powerState),
+      loadBanquigerLeague(),
     ]).then(([bundle, userPowerState]) => {
       if (!active) return;
       setSettings(saveStoredBanquigerSettings(bundle.settings));
       setRounds(saveStoredBanquigerRounds(bundle.rounds));
       saveStoredBanquigerPlayers(bundle.players);
       setPowers(saveStoredBanquigerPowers(bundle.powers));
-      setPowerState(saveStoredBanquigerPowerState(userPowerState.data));
+      setPowerState(userPowerState.data);
       if (bundle.marketState) saveStoredBanquigerMarketState(bundle.marketState);
       setMarketPlayers(getStoredBanquigerPlayers(buildPlayerMarket()));
     });
@@ -549,12 +549,16 @@ const BanquigerPage = () => {
   useEffect(() => {
     let active = true;
     const refresh = async () => {
-      const [data, settingsDoc, roundsDoc] = await Promise.all([
+      const [data, settingsDoc, roundsDoc, leagueDoc, teams] = await Promise.all([
         loadBanquigerMatchData(),
         loadGameDocument(GAME_DATA_KEYS.banquigerSettings, getStoredBanquigerSettings()),
         loadGameDocument(GAME_DATA_KEYS.banquigerRounds, getStoredBanquigerRounds()),
+        loadBanquigerLeague(),
+        loadBanquigerTeams(),
       ]);
       if (!active) return;
+      setPowerState(leagueDoc.data);
+      setRegisteredTeams(teams);
       setMatchData(data);
       setRounds(saveStoredBanquigerRounds(mergeBanquigerCalendarRounds(roundsDoc.data)));
       setSettings(saveStoredBanquigerSettings(settingsDoc.data));
@@ -581,37 +585,22 @@ const BanquigerPage = () => {
   );
   const selectedCost = selectedPlayers.reduce((total, player) => total + player.price, 0);
   const remainingBudget = budget - selectedCost;
-  const baseSelectedScore = selectedPlayers.reduce((total, player) => {
-    const row = rowsByPlayer.get(player.id);
-    if (!row?.played) return total;
-
-    const starter = starterPlayers.some((starterPlayer) => starterPlayer.id === player.id);
-    return total + getFantasyValuation(
-      row.gameStat,
-      row.advancedStat,
-      starter,
-      settings.starterNonPointMultiplier,
-    );
-  }, 0);
-  const currentPowerUses = powerState.uses.filter((use) => use.round === settings.currentRound);
-  const ownPowerBonus = currentPowerUses
-    .filter((use) => use.targetTeamId === 'local-team')
-    .reduce((total, use) => {
-      const player = selectedPlayers.find((candidate) => candidate.id === use.targetPlayerId);
-      const row = rowsByPlayer.get(player?.id);
-      if (!player || !row?.played) return total;
-      const isStarter = starterPlayers.some((starter) => starter.id === player.id);
-      if (use.effect === 'own_double') {
-        return total + getFantasyValuation(row.gameStat, row.advancedStat, isStarter, settings.starterNonPointMultiplier);
-      }
-      if (use.effect === 'bench_as_starter' && !isStarter) {
-        return total
-          + getFantasyValuation(row.gameStat, row.advancedStat, true, settings.starterNonPointMultiplier)
-          - getFantasyValuation(row.gameStat, row.advancedStat, false, settings.starterNonPointMultiplier);
-      }
-      return total;
-    }, 0);
-  const selectedScore = baseSelectedScore + ownPowerBonus;
+  const ownTeamId = String(registeredTeams.find(team => team.user_id === user?.id)?.id || '');
+  const currentPowerUses = powerState.uses.filter(use => use.round === settings.currentRound);
+  const scoringRound = rounds.find(round => round.matchId === latestPublishedMatch?.id);
+  const settled = powerState.results.find(result => result.round === scoringRound?.name);
+  const powerTeams = registeredTeams.map(team => ({
+    id: String(team.id), team: team.user_id === user?.id ? teamName : team.name,
+    selectedIds: team.user_id === user?.id ? selectedIds : (team.selected_ids || []).map(String),
+  }));
+  const scoredTeams = scorePowerRound({
+    teams: powerTeams.map(team => ({ ...team, selectedIds: powerState.snapshots?.[scoringRound?.name]?.[team.id] || team.selectedIds })),
+    players: marketPlayers, gameStats: matchData.gameStats, advancedStats: matchData.advancedStats,
+    matchId: latestPublishedMatch?.id, multiplier: settings.starterNonPointMultiplier,
+    uses: powerState.uses.filter(use => use.round === scoringRound?.name),
+  });
+  const selectedScore = settled?.ranking.find(team => team.id === ownTeamId)?.points
+    ?? scoredTeams.find(team => team.id === ownTeamId)?.points ?? 0;
   const selectedPlayed = selectedPlayers.filter((player) => rowsByPlayer.get(player.id)?.played).length;
   const sortedMarket = [...marketPlayers]
     .filter((player) => positionFilter === 'all' || player.position === positionFilter)
@@ -629,54 +618,17 @@ const BanquigerPage = () => {
   const missingStarterPositions = STARTER_POSITIONS.filter((position) => !startersByPosition[position]);
   const startersComplete = missingStarterPositions.length === 0;
   const canSave = settings.marketStatus === 'open' && selectedIds.length === teamSize && startersComplete && remainingBudget >= 0;
-  const baseLeaderboard = registeredTeams.map((team) => {
+  const leaderboard = registeredTeams.map(team => {
     const current = team.user_id === user?.id;
+    const preview = scoredTeams.find(entry => entry.id === String(team.id));
     return {
       id: current ? 'local-team' : String(team.id),
-      manager: current ? managerName || team.manager_name || user?.name || 'Manager' : team.manager_name || 'Manager',
-      team: current ? teamName || team.name || 'Mi Banquiger' : team.name || 'Mi Banquiger',
-      points: current ? selectedScore : Number(team.total_points) || 0,
-      selectedIds: current
-        ? selectedIds
-        : (Array.isArray(team.selected_ids) ? team.selected_ids.map(String) : []),
-      current,
+      manager: current ? managerName || team.manager_name || 'Manager' : team.manager_name || 'Manager',
+      team: current ? teamName : team.name,
+      points: (Number(team.total_points) || 0) + (settled ? 0 : preview?.points || 0),
+      selectedIds: current ? selectedIds : (team.selected_ids || []).map(String), current,
     };
-  });
-  const leaderboard = baseLeaderboard.map((entry) => {
-    const teamUses = currentPowerUses.filter((use) => use.targetTeamId === entry.id);
-    const forcedPlayerIds = new Set(teamUses.filter((use) => use.effect === 'force_sale').map((use) => use.targetPlayerId));
-    const adjustedIds = entry.selectedIds.filter((id) => !forcedPlayerIds.has(String(id)));
-    const penalty = teamUses
-      .filter((use) => use.effect === 'rival_half')
-      .reduce((total, use) => {
-        const row = rowsByPlayer.get(String(use.targetPlayerId));
-        if (!row?.played) return total;
-        return total + getFantasyValuation(row.gameStat, row.advancedStat, false) / 2;
-      }, 0);
-    return { ...entry, selectedIds: adjustedIds, points: Math.max(0, entry.points - penalty) };
-  }).sort((a, b) => b.points - a.points);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    const alreadyAssigned = powerState.inventory.some((item) => item.round === settings.currentRound);
-    const alreadyUsed = powerState.uses.some((item) => item.round === settings.currentRound && item.sourceTeamId === 'local-team');
-    if (!powers.length || alreadyAssigned || alreadyUsed) return;
-    const position = leaderboard.findIndex((entry) => entry.id === 'local-team');
-    if (position < Math.max(1, leaderboard.length - 3)) return;
-    const power = powers[position % powers.length];
-    const nextState = {
-      ...powerState,
-      inventory: [...powerState.inventory, {
-        instanceId: `power-card-${Date.now()}`,
-        powerId: power.id,
-        round: settings.currentRound,
-        status: 'available',
-        awardedPosition: position + 1,
-      }],
-    };
-    setPowerState(saveStoredBanquigerPowerState(nextState));
-    void saveUserGameDocument(GAME_DATA_KEYS.banquigerPowerState, 'banquiger', nextState);
-  }, [isAuthenticated, leaderboard, powerState, powers, settings.currentRound]);
+  }).sort((a, b) => b.points - a.points || (a.current ? ownTeamId : a.id).localeCompare(b.current ? ownTeamId : b.id));
 
   const persistTeam = (nextSelectedIds = selectedIds, nextTeamName = teamName) => {
     window.localStorage.setItem(
@@ -695,7 +647,8 @@ const BanquigerPage = () => {
       selectedIds: nextSelectedIds,
       selectedMatchId: currentRound?.matchId,
       season: BANQUIGER_SEASON,
-    }).then(({ data }) => {
+    }).then(({ data, error }) => {
+      if (error) { setTeamNameNotice(error.message); setSaved(false); return; }
       if (!data) return;
       setRegisteredTeams((currentTeams) => {
         const remainingTeams = currentTeams.filter((team) => team.id !== data.id);
@@ -769,45 +722,13 @@ const BanquigerPage = () => {
   };
 
   const availablePowerCards = powerState.inventory
-    .filter((item) => item.round === settings.currentRound && item.status === 'available')
-    .map((item) => ({ ...item, power: powers.find((power) => power.id === item.powerId) }))
-    .filter((item) => item.power);
-
-  const usePower = (card) => {
-    if (resolveBanquigerSchedule(storedSettings, rounds).settings.marketStatus !== 'open') return;
-    const power = card.power;
-    const targetTeamId = power.type === 'positive' ? 'local-team' : powerTargetTeamId;
-    if (!targetTeamId || !powerTargetPlayerId) {
-      setPowerNotice('Elige el equipo y el jugador objetivo antes de activar la carta.');
-      return;
-    }
-    const targetTeam = leaderboard.find((entry) => entry.id === targetTeamId);
-    const targetPlayer = marketPlayers.find((player) => player.id === powerTargetPlayerId);
-    const nextUse = {
-      id: `power-use-${Date.now()}`,
-      round: settings.currentRound,
-      powerId: power.id,
-      powerName: power.name,
-      effect: power.effect,
-      sourceTeamId: 'local-team',
-      sourceTeamName: teamName,
-      targetTeamId,
-      targetTeamName: targetTeam?.team || teamName,
-      targetPlayerId: powerTargetPlayerId,
-      targetPlayerName: targetPlayer?.name || 'Jugador',
-      usedAt: new Date().toISOString(),
-    };
-    const nextState = {
-      inventory: powerState.inventory.map((item) =>
-        item.instanceId === card.instanceId ? { ...item, status: 'used' } : item,
-      ),
-      uses: [...powerState.uses, nextUse],
-    };
-    setPowerState(saveStoredBanquigerPowerState(nextState));
-    void saveUserGameDocument(GAME_DATA_KEYS.banquigerPowerState, 'banquiger', nextState);
-    setPowerTargetTeamId('');
-    setPowerTargetPlayerId('');
-    setPowerNotice(`${power.name} activado sobre ${nextUse.targetPlayerName}.`);
+    .filter(item => item.sourceTeamId === ownTeamId && item.round === settings.currentRound && item.status === 'available')
+    .map(item => ({ ...item, power: item.power || powers.find(power => power.id === item.powerId) }))
+    .filter(item => item.power);
+  const usePower = async (card, targets) => {
+    const state = await useBanquigerCard(card.instanceId, targets);
+    setPowerState(state);
+    setPowerNotice(`${card.power.name} activado para esta jornada.`);
   };
 
   const renderLineupPreview = () => (
@@ -1190,45 +1111,12 @@ const BanquigerPage = () => {
     </section>
   );
 
-  const renderPowers = () => {
-    const rivalTeams = leaderboard.filter((entry) => entry.id !== 'local-team');
-    const selectedRival = rivalTeams.find((entry) => entry.id === powerTargetTeamId);
-    const selectedRivalPlayers = (selectedRival?.selectedIds || [])
-      .map((id) => marketPlayers.find((player) => player.id === String(id)))
-      .filter(Boolean);
-
-    return (
-      <section className="space-y-4">
-        <div className="rounded-xl border border-[hsl(43_65%_52%_/_0.2)] bg-[#111]/90 p-5">
-          <div className="mb-5 flex items-start gap-3">
-            <span className="rounded-xl bg-[hsl(43_65%_52%_/_0.12)] p-3 text-[hsl(43_65%_62%)]"><Zap size={22} /></span>
-            <div><p className="text-xs font-black uppercase text-[hsl(43_65%_52%)]">Poderes del Banquillo</p><h2 className="text-xl font-black text-white">Cartas de remontada</h2><p className="mt-1 text-sm text-gray-500">Los tres últimos clasificados reciben una carta para utilizar en la siguiente jornada. Solo puede usarse una vez.</p></div>
-          </div>
-
-          {powerNotice && <p className="mb-4 rounded-lg border border-[hsl(43_65%_52%_/_0.3)] bg-[hsl(43_65%_52%_/_0.08)] px-4 py-3 text-sm font-bold text-[hsl(43_65%_70%)]">{powerNotice}</p>}
-
-          {availablePowerCards.length ? <div className="grid gap-4 lg:grid-cols-2">
-            {availablePowerCards.map((card) => {
-              const power = card.power;
-              const ownCandidates = power.effect === 'bench_as_starter' ? benchPlayers : selectedPlayers;
-              const candidates = power.type === 'positive' ? ownCandidates : selectedRivalPlayers;
-              return <article key={card.instanceId} className="rounded-xl border border-[hsl(43_65%_52%_/_0.3)] bg-gradient-to-br from-[#201a0c] to-black p-5">
-                <div className="flex items-start justify-between gap-3"><div><span className={`text-[10px] font-black uppercase ${power.type === 'positive' ? 'text-green-300' : 'text-red-300'}`}>{power.type === 'positive' ? 'Poder propio' : 'Ataque rival'} · {power.rarity === 'rare' ? 'Raro' : 'Común'}</span><h3 className="mt-1 text-xl font-black text-white">{power.name}</h3></div><Zap className="shrink-0 text-[hsl(43_65%_52%)]" /></div>
-                <p className="mt-3 text-sm leading-relaxed text-gray-400">{power.description}</p>
-                <div className="mt-5 space-y-3">
-                  {power.type === 'negative' && <label className="block"><span className="mb-2 block text-xs font-black uppercase text-gray-500">Equipo rival</span><select value={powerTargetTeamId} onChange={(event) => { setPowerTargetTeamId(event.target.value); setPowerTargetPlayerId(''); }} className="w-full rounded-lg border border-white/10 bg-black px-3 py-2.5 text-sm font-bold text-white outline-none focus:border-[hsl(43_65%_52%)]"><option value="">Elegir rival</option>{rivalTeams.map((entry) => <option key={entry.id} value={entry.id}>{entry.team}</option>)}</select></label>}
-                  <label className="block"><span className="mb-2 block text-xs font-black uppercase text-gray-500">Jugador objetivo</span><select value={powerTargetPlayerId} onChange={(event) => setPowerTargetPlayerId(event.target.value)} className="w-full rounded-lg border border-white/10 bg-black px-3 py-2.5 text-sm font-bold text-white outline-none focus:border-[hsl(43_65%_52%)]"><option value="">Elegir jugador</option>{candidates.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select></label>
-                  <button type="button" onClick={() => usePower(card)} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[hsl(43_65%_52%)] px-4 py-3 text-xs font-black uppercase text-black"><Zap size={15} /> Activar poder</button>
-                </div>
-              </article>;
-            })}
-          </div> : <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-5 py-8 text-center"><Zap className="mx-auto text-white/20" /><p className="mt-3 font-black text-gray-300">No tienes cartas disponibles</p><p className="mt-1 text-sm text-gray-600">Si terminas entre los tres últimos, recibirás una para la siguiente jornada.</p></div>}
-        </div>
-
-        {currentPowerUses.length > 0 && <div className="rounded-xl border border-white/10 bg-[#111]/90 p-5"><p className="text-xs font-black uppercase text-[hsl(43_65%_52%)]">Registro público</p><h2 className="text-xl font-black text-white">Poderes utilizados esta jornada</h2><div className="mt-4 space-y-2">{currentPowerUses.map((use) => <div key={use.id} className="rounded-lg border border-white/5 bg-black/25 px-4 py-3 text-sm"><strong className="text-white">{use.sourceTeamName}</strong><span className="text-gray-500"> usó </span><strong className="text-[hsl(43_65%_62%)]">{use.powerName}</strong><span className="text-gray-500"> sobre {use.targetPlayerName} ({use.targetTeamName})</span></div>)}</div></div>}
-      </section>
-    );
-  };
+  const renderPowers = () => <BanquigerPowers
+    cards={availablePowerCards} catalog={powers}
+    teams={powerTeams.map(team => ({ ...team, lineup: buildPowerLineup(team.selectedIds, marketPlayers) }))}
+    sourceTeamId={ownTeamId} uses={currentPowerUses}
+    open={settings.marketStatus === 'open'} onUse={usePower} notice={powerNotice}
+  />;
 
   const renderRanking = () => (
     <section className="rounded-xl border border-[hsl(43_65%_52%_/_0.18)] bg-[#111]/90 p-4">

@@ -58,7 +58,7 @@ function App() {
           <Route path="/banquiger" element={<BanquigerPage />} />
           <Route path="/banquiger/panel" element={<BanquigerPage />} />
           <Route path="/18-0" element={<EighteenZeroPage />} />
-          <Route path="/adn-banquiller" element={<Suspense fallback={careerFallback}><CareerPage /></Suspense>} />
+          <Route path="/adn-banquiller" element={import.meta.env.DEV ? <Suspense fallback={careerFallback}><CareerPage /></Suspense> : <Navigate to="/" replace />} />
           <Route path="/app-estadisticas" element={<StatsCapturePage />} />
           <Route path="/estadisticas" element={<Navigate to="/app-estadisticas" replace />} />
           <Route path="/login" element={<LoginPage />} />

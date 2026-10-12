@@ -9,6 +9,7 @@ export const GAME_DATA_KEYS = {
   eighteenZeroSkills: 'eighteen-zero:skills',
   eighteenZeroChemistry: 'eighteen-zero:chemistry',
   eighteenZeroCoaches: 'eighteen-zero:coaches',
+  banquigerLeague: 'banquiger:league-v2',
   banquigerSettings: 'banquiger:settings',
   banquigerPlayers: 'banquiger:players',
   banquigerRounds: 'banquiger:rounds',
@@ -166,8 +167,29 @@ export const loadBanquigerTeams = async (season = BANQUIGER_SEASON) => {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase
     .from('banquiger_teams')
-    .select('id,user_id,name,manager_name,budget,total_points,selected_ids')
+    .select('id,user_id,name,manager_name,budget,total_points,selected_ids,selected_match_id,created_at')
     .eq('season', season)
     .order('total_points', { ascending: false });
   return error ? [] : data || [];
+};
+
+export const emptyBanquigerLeague = { inventory: [], uses: [], results: [], snapshots: {} };
+export const loadBanquigerLeague = async () => {
+  if (!isSupabaseConfigured) return { data: emptyBanquigerLeague, remote: false };
+  const { data: session } = await supabase.auth.getSession();
+  if (!session.session) return { data: emptyBanquigerLeague, remote: false };
+  const { data, error } = await supabase.rpc('banquiger_read_league');
+  return { data: data || emptyBanquigerLeague, remote: !error, error };
+};
+export const useBanquigerCard = async (instanceId, targets) => {
+  if (!isSupabaseConfigured) throw new Error('Conecta con la web para activar poderes.');
+  const { data, error } = await supabase.rpc('banquiger_use_card', { p_instance: instanceId, p_targets: targets });
+  if (error) throw new Error(error.message);
+  return data;
+};
+export const finalizeBanquigerRound = async (round, ranking) => {
+  if (!isSupabaseConfigured) throw new Error('Conecta con la web para publicar la jornada.');
+  const { data, error } = await supabase.rpc('banquiger_finalize_round', { p_round: round, p_ranking: ranking });
+  if (error) throw new Error(error.message);
+  return data;
 };

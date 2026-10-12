@@ -1,0 +1,24 @@
+# Poderes de Banquiger: implementación
+
+Los 32 poderes de la propuesta se encuentran en `src/utils/banquigerPowers.js`. El catálogo sustituye las cuatro cartas antiguas y conserva únicamente nombres, descripciones y activación personalizada. Los efectos, objetivos, rarezas y límites mantienen el equilibrio simulado.
+
+- La administración publica una jornada después de registrar resultado y estadísticas oficiales. El cálculo usa las alineaciones registradas, la puntuación base y todas las cartas compartidas de ese partido.
+- La publicación suma puntos a la clasificación general y reparte una carta a los tres últimos de **esa jornada**, con al menos cuatro equipos completos. Los empates se ordenan por el identificador estable del equipo.
+- La siguiente jornada es el siguiente partido efectivo del calendario masculino: los descansos no consumen cartas. No hay reparto inicial sin una clasificación definitiva anterior.
+- Probabilidades común/raro/épico/legendario: antepenúltimo 64/26/8/2; penúltimo 56/30/11/3; último 48/32/15/5. Dentro de la rareza, 60% propios y 40% ataques. Se excluyen las tres últimas cartas entregadas y los ataques que requieren más rivales elegibles de los disponibles. Si administración desactiva todas las cartas elegibles de un grupo, se sortea entre las restantes activas y elegibles.
+- Una activación por equipo y jornada, antes del comienzo del partido. Inventarios privados, registro compartido de activaciones, persistencia entre dispositivos y protección contra cartas ajenas, reutilización y puntuaciones manipuladas.
+- Los ataques solo afectan a la plantilla fantasy objetivo, aunque otros managers tengan al mismo jugador. Todos los efectos se calculan sobre la puntuación original, sin multiplicar bonus anteriores. Daño conjunto máximo de 60% de cada puntuación positiva y 24 puntos por equipo.
+- La selección se guarda por jornada; al empezar el partido se bloquean los cambios de alineación en el servidor. Si no se cambia el equipo, se conserva la alineación anterior. Publicar dos veces no duplica puntos ni premios. Las cartas no se acumulan para otras jornadas.
+- Durante el mercado pueden cambiarse plantillas; un objetivo que abandona la plantilla deja de recibir el efecto. Cada activación es definitiva y no se puede volver a elegir el objetivo.
+
+## Validación
+
+`node --test tests/banquigerPowers.test.js tests/banquigerSchedule.test.js`: 14 pruebas, incluyendo los 32 efectos, caps, múltiples rivales, titular/suplente, no participantes y migración del catálogo.
+
+`supabase/banquiger-powers-verification.sql`: fixtures transaccionales que terminan con ROLLBACK. Verifica reparto único, inventarios privados, activación de todos los efectos y rechazo de cartas ajenas, reutilizadas y caducadas, cambios de alineación fuera de plazo y puntos falsificados.
+
+`npm run test:career`: las 153 pruebas del modo carrera siguen pasando. `npm run build` compila correctamente.
+
+## Modo carrera
+
+La ruta pública `/adn-banquiller` redirige al inicio en producción; se han retirado los enlaces del menú, cuenta, pie y sitemap. El código, la configuración, el editor protegido y el acceso de desarrollo se conservan para retomar el trabajo.

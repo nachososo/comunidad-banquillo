@@ -1,3 +1,4 @@
+import { POWER_RARITIES, scorePowerRound } from '@/utils/banquigerPowers.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, Navigate } from 'react-router-dom';
@@ -53,7 +54,7 @@ import {
   saveStoredBanquigerPowerState,
   saveStoredBanquigerMarketState,
 } from '@/utils/banquigerStorage.js';
-import { GAME_DATA_KEYS, loadBanquigerBundle, loadBanquigerTeams, loadBanquigerMatchData, saveGameDocument } from '@/lib/gameDataRepository.js';
+import { GAME_DATA_KEYS, loadBanquigerBundle, loadBanquigerTeams, loadBanquigerMatchData, saveGameDocument, loadBanquigerLeague, finalizeBanquigerRound } from '@/lib/gameDataRepository.js';
 
 const positions = ['Base', 'Escolta', 'Alero', 'Ala-Pívot', 'Pívot'];
 const baseMarket = buildPlayerMarket();
@@ -76,7 +77,7 @@ const emptyPower = {
   name: '',
   description: '',
   type: 'positive',
-  effect: 'own_double',
+  effect: 'c1',
   rarity: 'common',
   active: true,
 };
@@ -309,18 +310,25 @@ const BanquigerAdminPage = () => {
   };
 
   const markScored = async (roundId) => {
-    const target = rounds.find((round) => round.id === roundId);
-    if (target?.automatic && !target.scored) {
-      const data = await loadBanquigerMatchData();
-      const match = data.matches.find((item) => item.id === target.matchId);
-      if (Date.now() < Date.parse(target.deadline) || !match?.result
-        || !data.gameStats.some((stat) => stat.matchId === target.matchId)) {
-        setNotice('Publica primero el resultado y las estadísticas oficiales del partido.');
-        return;
-      }
-    }
-    updateRounds(rounds.map((round) => round.id === roundId ? { ...round, scored: !round.scored } : round),
-      'Estado de puntuación actualizado. El calendario avanzará a la siguiente jornada disponible.');
+    const target = rounds.find(round => round.id === roundId);
+    if (!target || target.scored) { setNotice('La jornada ya está publicada; su reparto se conserva.'); return; }
+    try {
+      const [data, teams, ledger] = await Promise.all([loadBanquigerMatchData(), loadBanquigerTeams(), loadBanquigerLeague()]);
+      if (ledger.error) throw new Error('No se pudo cargar el registro de poderes. Vuelve a intentarlo antes de publicar.');
+      const ranking = scorePowerRound({
+        teams: teams.filter(team => Date.parse(team.created_at) < Date.parse(target.deadline)).map(team => ({
+          id: String(team.id), team: team.name,
+          selectedIds: ledger.data.snapshots?.[target.name]?.[String(team.id)] || (team.selected_ids || []).map(String),
+        })).filter(team => team.selectedIds.length === 7),
+        players, gameStats: data.gameStats, advancedStats: data.advancedStats,
+        matchId: target.matchId, multiplier: settings.starterNonPointMultiplier,
+        uses: ledger.data.uses.filter(use => use.round === target.name),
+      });
+      await finalizeBanquigerRound(target.name, ranking);
+      setRounds(saveStoredBanquigerRounds(rounds.map(round => round.id === roundId ? { ...round, scored: true, status: 'closed' } : round)));
+      setRemoteTeams(await loadBanquigerTeams());
+      setNotice('Jornada publicada y cartas repartidas a los tres últimos para el siguiente partido.');
+    } catch (error) { setNotice(error.message); }
   };
 
   const recalculatePrices = () => {
@@ -335,12 +343,6 @@ const BanquigerAdminPage = () => {
   const selectPower = (power) => {
     setSelectedPowerId(power.id);
     setPowerForm({ ...emptyPower, ...power });
-    setNotice('');
-  };
-
-  const startNewPower = () => {
-    setSelectedPowerId('');
-    setPowerForm({ ...emptyPower });
     setNotice('');
   };
 
@@ -362,15 +364,6 @@ const BanquigerAdminPage = () => {
     setNotice(selectedPowerId ? 'Poder actualizado.' : 'Poder creado.');
   };
 
-  const deletePower = () => {
-    if (!selectedPowerId) return;
-    const nextPowers = powers.filter((power) => power.id !== selectedPowerId);
-    setPowers(saveStoredBanquigerPowers(nextPowers));
-    setSelectedPowerId(nextPowers[0]?.id || '');
-    setPowerForm(nextPowers[0] || emptyPower);
-    saveRemote(GAME_DATA_KEYS.banquigerPowers, nextPowers);
-    setNotice('Poder eliminado.');
-  };
 
   const inputClass = 'w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-sm font-bold text-white outline-none transition focus:border-[hsl(43_65%_52%)]';
 
@@ -500,7 +493,6 @@ const BanquigerAdminPage = () => {
             <article className="rounded-xl border border-white/10 bg-[#111]/90 p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div><p className="text-xs font-black uppercase text-[hsl(43_65%_52%)]">Cartas de remontada</p><h2 className="text-xl font-black">Poderes disponibles</h2></div>
-                <button type="button" onClick={startNewPower} className="inline-flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-xs font-black uppercase hover:bg-white/10"><Plus size={15} /> Añadir</button>
               </div>
               <p className="mb-4 text-sm text-gray-500">Los equipos de las tres últimas posiciones reciben una carta para la siguiente jornada.</p>
               <div className="space-y-2">
@@ -515,12 +507,12 @@ const BanquigerAdminPage = () => {
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="sm:col-span-2"><span className="mb-2 block text-xs font-black uppercase text-gray-500">Nombre</span><input className={inputClass} value={powerForm.name} onChange={(e) => setPowerForm({ ...powerForm, name: e.target.value })} /></label>
                 <label className="sm:col-span-2"><span className="mb-2 block text-xs font-black uppercase text-gray-500">Descripción</span><textarea className={`${inputClass} min-h-24 resize-y`} value={powerForm.description} onChange={(e) => setPowerForm({ ...powerForm, description: e.target.value })} /></label>
-                <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Objetivo</span><select className={inputClass} value={powerForm.type} onChange={(e) => setPowerForm({ ...powerForm, type: e.target.value })}><option value="positive">Equipo propio</option><option value="negative">Equipo rival</option></select></label>
-                <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Rareza</span><select className={inputClass} value={powerForm.rarity} onChange={(e) => setPowerForm({ ...powerForm, rarity: e.target.value })}><option value="common">Común</option><option value="rare">Raro</option></select></label>
-                <label className="sm:col-span-2"><span className="mb-2 block text-xs font-black uppercase text-gray-500">Efecto</span><select className={inputClass} value={powerForm.effect} onChange={(e) => setPowerForm({ ...powerForm, effect: e.target.value, type: e.target.value.startsWith('rival') || e.target.value === 'force_sale' ? 'negative' : 'positive' })}><option value="own_double">x2 adicional a jugador propio</option><option value="bench_as_starter">Suplente puntúa como titular</option><option value="rival_half">/2 a jugador rival</option><option value="force_sale">Obligar a vender jugador rival</option></select></label>
+                <p className="text-sm text-gray-400">Objetivo: {powerForm.type === 'positive' ? 'Equipo propio' : 'Rivales'}</p>
+                <p className="text-sm text-gray-400">Rareza: {POWER_RARITIES[powerForm.rarity]}</p>
+                <p className="sm:col-span-2 text-sm text-gray-400">Límite conjunto: {powerForm.cap} puntos · {powerForm.rivalCount} equipo(s) · {powerForm.count === 7 ? 'Toda la plantilla' : `${powerForm.count} jugador(es)`}</p>
                 <label className="sm:col-span-2 flex items-center gap-3 rounded-lg border border-white/10 bg-black/30 p-3"><input type="checkbox" checked={powerForm.active} onChange={(e) => setPowerForm({ ...powerForm, active: e.target.checked })} /><span><strong className="block text-sm">Poder activo</strong><small className="text-gray-500">Solo los poderes activos pueden asignarse.</small></span></label>
               </div>
-              <div className="mt-5 flex gap-2"><button type="button" onClick={savePower} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[hsl(43_65%_52%)] px-4 py-3 text-xs font-black uppercase text-black"><Save size={15} /> Guardar poder</button>{selectedPowerId && <button type="button" onClick={deletePower} className="rounded-lg border border-red-400/20 px-4 text-red-300 hover:bg-red-500/10" aria-label="Eliminar poder"><Trash2 size={17} /></button>}</div>
+              <div className="mt-5 flex gap-2"><button type="button" onClick={savePower} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[hsl(43_65%_52%)] px-4 py-3 text-xs font-black uppercase text-black"><Save size={15} /> Guardar poder</button></div>
             </article>
           </section>}
 

@@ -44,7 +44,7 @@ const Footer = () => {
   }, []);
 
   const groupedContent = useMemo(() => {
-    const visibleItems = contentItems.filter((item) => item.visible !== false);
+    const visibleItems = contentItems.filter((item) => item.visible !== false && item.href !== '/adn-banquiller');
 
     return {
       quickLinks: visibleItems.filter((item) => item.section === 'quick_links'),

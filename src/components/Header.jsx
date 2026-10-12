@@ -19,7 +19,6 @@ const Header = () => {
     { path: '/contacto', label: 'Contacto', mobileLabel: 'Ponte en contacto con nosotros' },
     { path: isAuthenticated ? '/banquiger/panel' : '/banquiger', label: 'Banquiger' },
     { path: '/18-0', label: '18-0' },
-    { path: '/adn-banquiller', label: 'Modo carrera' },
   ];
 
   const isActive = (path) => location.pathname === path;

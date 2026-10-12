@@ -1,5 +1,5 @@
 export const defaultSiteContent = [
-  { key: 'quick_adn_career', section: 'quick_links', label: 'ADN Banquiller · Modo carrera', href: '/adn-banquiller', type: 'internal', visible: true, sort_order: 85 },
+  { key: 'quick_adn_career', section: 'quick_links', label: 'ADN Banquiller · Modo carrera', href: '/adn-banquiller', type: 'internal', visible: false, sort_order: 85 },
   {
     key: 'quick_home',
     section: 'quick_links',
