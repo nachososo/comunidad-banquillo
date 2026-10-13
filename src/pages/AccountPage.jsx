@@ -83,6 +83,10 @@ const AccountPage = () => {
                 {isAdmin ? 'Administrador' : 'Usuario'}
               </p>
 
+              <Link to="/recuperar-contrasena" state={{ email: user.email }} className="mt-5 block text-sm font-bold text-[hsl(43_65%_52%)] hover:underline">
+                Recuperar o cambiar contraseña
+              </Link>
+
               <button
                 type="button"
                 onClick={signOut}

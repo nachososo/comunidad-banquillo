@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient.js';
+import { isSupabaseConfigured, passwordRecoveryCallback, supabase } from '@/lib/supabaseClient.js';
+
+import { requestPasswordRecovery, saveRecoveredPassword } from '@/utils/passwordRecovery.js';
 
 const AUTH_STORAGE_KEY = 'cdb-auth-session-v1';
 
@@ -77,6 +79,8 @@ const getUserFromSupabaseUser = async (authUser) => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(getStoredLocalUser);
   const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [passwordRecovery, setPasswordRecovery] = useState(passwordRecoveryCallback.requested || passwordRecoveryCallback.failed);
+  const [recoveryFailed, setRecoveryFailed] = useState(passwordRecoveryCallback.failed);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return undefined;
@@ -98,6 +102,7 @@ export const AuthProvider = ({ children }) => {
           setUser(nextUser);
         }
       } catch (error) {
+        if (passwordRecoveryCallback.requested) setRecoveryFailed(true);
         console.warn('No se pudo cargar la sesión de Supabase:', error.message);
         if (isMounted) {
           setUser(null);
@@ -114,7 +119,11 @@ export const AuthProvider = ({ children }) => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecovery(true);
+        setRecoveryFailed(false);
+      }
       window.setTimeout(async () => {
         try {
           const nextUser = await getUserFromSupabaseUser(session?.user);
@@ -197,6 +206,17 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const requestPasswordReset = async (email) => {
+    // The configured Site URL is already authorized by Supabase.
+    await requestPasswordRecovery(supabase?.auth, email);
+  };
+
+  const updatePassword = async (password, confirmation) => {
+    if (recoveryFailed) throw new Error('Solicita un nuevo enlace de recuperación.');
+    await saveRecoveredPassword(supabase?.auth, password, confirmation);
+    setPasswordRecovery(false);
+  };
+
   const signInLocalOnly = ({ email, name }) => {
     const nextUser = createUserFromEmail({ email, name });
     window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser));
@@ -215,8 +235,12 @@ export const AuthProvider = ({ children }) => {
       signUp,
       signInLocalOnly,
       signOut,
+      passwordRecovery,
+      recoveryFailed,
+      requestPasswordReset,
+      updatePassword,
     }),
-    [loading, user],
+    [loading, user, passwordRecovery, recoveryFailed],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

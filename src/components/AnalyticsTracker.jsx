@@ -6,7 +6,7 @@ const AnalyticsTracker = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const privatePrefixes = ['/panel-control', '/login', '/registro', '/mi-cuenta'];
+    const privatePrefixes = ['/panel-control', '/login', '/registro', '/mi-cuenta', '/recuperar-contrasena', '/restablecer-contrasena'];
     if (privatePrefixes.some((prefix) => location.pathname.startsWith(prefix))) return undefined;
 
     const path = `${location.pathname}${location.search || ''}`;

@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect, useRef } from 'react';
 import { Navigate, Route, Routes, BrowserRouter as Router } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import HomePage from './pages/HomePage';
@@ -31,17 +31,34 @@ import EighteenZeroAdminPage from './pages/EighteenZeroAdminPage';
 import BanquigerAdminPage from './pages/BanquigerAdminPage';
 import ContactAdminPage from './pages/ContactAdminPage';
 import NewsAdminPage from './pages/NewsAdminPage';
-import { AuthProvider } from './auth/AuthContext.jsx';
+import PasswordRecoveryPage from './pages/PasswordRecoveryPage.jsx';
+import { useNavigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './auth/AuthContext.jsx';
 import AnalyticsTracker from './components/AnalyticsTracker.jsx';
 
 const CareerPage = lazy(() => import('./pages/CareerPage.jsx'));
 const CareerAdminPage = lazy(() => import('./pages/CareerAdminPage.jsx'));
 const careerFallback = <div role="status" className="min-h-screen grid place-items-center text-[hsl(43_65%_52%)]">Cargando ADN Banquiller…</div>;
 
+function PasswordRecoveryRedirect() {
+  const { passwordRecovery } = useAuth();
+  const navigate = useNavigate();
+  const handled = useRef(false);
+  useEffect(() => {
+    if (!passwordRecovery) handled.current = false;
+    else if (!handled.current) {
+      handled.current = true;
+      navigate('/restablecer-contrasena', { replace: true });
+    }
+  }, [passwordRecovery, navigate]);
+  return null;
+}
+
 function App() {
   return (
     <AuthProvider>
       <Router>
+        <PasswordRecoveryRedirect />
         <ScrollToTop />
         <AnalyticsTracker />
         <Routes>
@@ -62,6 +79,8 @@ function App() {
           <Route path="/app-estadisticas" element={<StatsCapturePage />} />
           <Route path="/estadisticas" element={<Navigate to="/app-estadisticas" replace />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/recuperar-contrasena" element={<PasswordRecoveryPage key="request" />} />
+          <Route path="/restablecer-contrasena" element={<PasswordRecoveryPage key="reset" reset />} />
           <Route path="/registro" element={<RegisterPage />} />
           <Route path="/mi-cuenta" element={<AccountPage />} />
           <Route path="/panel-control" element={<ControlPanelPage />} />

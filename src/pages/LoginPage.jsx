@@ -98,6 +98,10 @@ const LoginPage = () => {
               />
             </label>
 
+            <Link to="/recuperar-contrasena" state={{ email }} className="mb-5 block text-right text-sm font-bold text-[hsl(43_65%_52%)] hover:underline">
+              ¿Has olvidado tu contraseña?
+            </Link>
+
             {statusMessage && (
               <p className="mb-4 rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm font-bold text-red-100">
                 {statusMessage}
