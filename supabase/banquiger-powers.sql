@@ -5,6 +5,31 @@ revoke all on schema banquiger_private from public, anon;
 grant usage on schema banquiger_private to authenticated;
 insert into public.game_data(key,game,payload) values ('banquiger:league-v2','banquiger','{"inventory":[],"uses":[],"results":[],"snapshots":{}}') on conflict(key) do nothing;
 
+create or replace function banquiger_private.lineup(p_ids jsonb,p_catalog jsonb) returns jsonb language sql immutable security invoker set search_path='' as $$
+with recursive candidates as (
+  select ids.id,ids.n::int as ordinal,p->>'position' as primary_position,
+    jsonb_build_array(p->>'position') || coalesce(p->'secondaryPositions','[]'::jsonb) as eligible
+  from jsonb_array_elements_text(p_ids) with ordinality ids(id,n)
+  join jsonb_array_elements(p_catalog) p on p->>'id'=ids.id
+), assignments(step,used,choices,slots,filled,secondary) as (
+  select 0,'{}'::text[],'{}'::int[],'{}'::jsonb,0,0
+  union all
+  select a.step+1,
+    case when c.id is null then a.used else array_append(a.used,c.id) end,
+    array_append(a.choices,coalesce(c.ordinal,999)),
+    a.slots || case when c.id is null then '{}'::jsonb else jsonb_build_object((array['Base','Escolta','Alero','Ala-Pívot','Pívot'])[a.step+1],c.id) end,
+    a.filled+case when c.id is null then 0 else 1 end,
+    a.secondary+case when c.id is not null and c.primary_position<>(array['Base','Escolta','Alero','Ala-Pívot','Pívot'])[a.step+1] then 1 else 0 end
+  from assignments a cross join lateral (
+    select c.id,c.ordinal,c.primary_position from candidates c
+      where c.eligible ? (array['Base','Escolta','Alero','Ala-Pívot','Pívot'])[a.step+1] and not c.id=any(a.used)
+    union all select null::text,null::int,null::text
+  ) c where a.step<5
+)
+select slots from assignments where step=5 order by filled desc,secondary asc,choices asc limit 1;
+$$;
+revoke all on function banquiger_private.lineup(jsonb,jsonb) from public,anon,authenticated;
+
 create or replace function banquiger_private.roster_guard() returns trigger language plpgsql security definer set search_path = '' as $$
 declare v_round jsonb; v_state jsonb; v_path text[]; v_team_id text; v_catalog jsonb;
 begin
@@ -22,7 +47,7 @@ begin
   if jsonb_typeof(new.selected_ids) <> 'array' or jsonb_array_length(new.selected_ids)>7 or (select count(distinct x) from jsonb_array_elements_text(new.selected_ids) x) <> jsonb_array_length(new.selected_ids) then raise exception 'Plantilla no válida.'; end if;
   select payload into v_catalog from public.game_data where key='banquiger:players';
   if exists(select 1 from jsonb_array_elements_text(new.selected_ids) x where not exists(select 1 from jsonb_array_elements(v_catalog) p where p->>'id'=x and coalesce((p->>'active')::boolean,true))) then raise exception 'Jugador no disponible en el mercado.'; end if;
-  if jsonb_array_length(new.selected_ids)=7 and (select count(distinct p->>'position') from jsonb_array_elements(v_catalog) p where new.selected_ids ? (p->>'id'))<>5 then raise exception 'Completa las cinco posiciones titulares.'; end if;
+  if jsonb_array_length(new.selected_ids)=7 and (select count(*) from jsonb_object_keys(banquiger_private.lineup(new.selected_ids,v_catalog)))<>5 then raise exception 'Completa las cinco posiciones titulares.'; end if;
   select coalesce((select id::text from public.banquiger_teams where user_id=new.user_id and season=new.season),new.id::text) into v_team_id;
   select payload into v_state from public.game_data where key='banquiger:league-v2' for update;
   v_state := jsonb_set(v_state,array['snapshots',v_round->>'name'],coalesce(v_state->'snapshots'->(v_round->>'name'),'{}'::jsonb));
@@ -60,9 +85,9 @@ begin
     if jsonb_typeof(v_ids)<>'array' or (v_power->>'count'<>'7' and jsonb_array_length(v_ids)<>(v_power->>'count')::int) or (select count(distinct x) from jsonb_array_elements_text(v_ids) x)<>jsonb_array_length(v_ids) then raise exception 'Número de jugadores no válido.'; end if;
     if exists(select 1 from jsonb_array_elements_text(v_ids) x where not v_team.selected_ids ? x) then raise exception 'El jugador no pertenece a esa plantilla.'; end if;
     if coalesce((v_power->>'bench')::boolean,false) or coalesce((v_power->>'starterOnly')::boolean,false) then
-      -- A starter is the first selected player at each position, as in the fantasy lineup.
+      -- Use the same maximum matching as the browser for starter/bench eligibility.
       for v_index in 0..jsonb_array_length(v_ids)-1 loop
-        if (select exists(select 1 from jsonb_array_elements_text(v_team.selected_ids) with ordinality a(id,n),jsonb_array_elements(v_catalog) p,jsonb_array_elements(v_catalog) q where p->>'id'=a.id and q->>'id'=v_ids->>v_index and p->>'position'=q->>'position' and a.n<(select n from jsonb_array_elements_text(v_team.selected_ids) with ordinality b(id,n) where b.id=v_ids->>v_index))) is distinct from coalesce((v_power->>'bench')::boolean,false) then raise exception 'Este poder requiere un titular o suplente específico.'; end if;
+        if (not exists(select 1 from jsonb_each_text(banquiger_private.lineup(v_team.selected_ids,v_catalog)) slots where slots.value=v_ids->>v_index)) is distinct from coalesce((v_power->>'bench')::boolean,false) then raise exception 'Este poder requiere un titular o suplente específico.'; end if;
       end loop;
     end if;
   end loop;

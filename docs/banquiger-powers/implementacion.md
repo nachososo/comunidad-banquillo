@@ -22,3 +22,13 @@ Los 32 poderes de la propuesta se encuentran en `src/utils/banquigerPowers.js`. 
 ## Modo carrera
 
 La ruta pública `/adn-banquiller` redirige al inicio en producción; se han retirado los enlaces del menú, cuenta, pie y sitemap. El código, la configuración, el editor protegido y el acceso de desarrollo se conservan para retomar el trabajo.
+
+## Posiciones dobles
+
+Se activan por defecto Base/Escolta, Escolta/Base, Alero/Escolta, Ala-Pívot/Pívot y Pívot/Ala-Pívot. La configuración de Banquiger guarda `position`, `secondaryPositions` (máximo una) y `positionsVersion: 2`; una lista vacía significa que administración ha elegido una sola posición. En el panel Mercado puede editarse la posición principal y secundaria de cada jugador, incluidos los personalizados.
+
+El quinteto busca la asignación que cubra más puestos sin duplicar jugadores. A igualdad de cobertura prefiere las posiciones principales y después el orden de selección por puesto. Así se reasigna un jugador polivalente cuando reservarlo en su posición principal impediría completar el equipo. Se mantienen cinco titulares y dos suplentes, precios, presupuesto y multiplicadores.
+
+La lógica compartida en `banquigerPositions.js` también decide titulares en el cálculo de puntos y poderes. Su equivalente SQL valida las siete fichas y las cartas de titular/suplente en el servidor. La migración adicional está en `supabase/banquiger-dual-positions.sql`.
+
+Validación: 19 pruebas de posiciones, poderes y calendario; 80 plantillas de contraste con idénticas asignaciones entre JavaScript y SQL; las siete comprobaciones transaccionales de cartas, privacidad y cierre de mercado siguen pasando.

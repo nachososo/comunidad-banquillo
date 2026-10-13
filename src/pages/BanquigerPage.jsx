@@ -1,3 +1,4 @@
+import { buildBanquigerLineup, canAddBanquigerPlayer, formatBanquigerPositions, getBanquigerPositions } from '@/utils/banquigerPositions.js';
 import BanquigerPowers from '@/components/BanquigerPowers.jsx';
 import { buildPowerLineup, scorePowerRound } from '@/utils/banquigerPowers.js';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -164,28 +165,7 @@ const getFantasyValuation = (gameStat, advancedStat, starter = false, starterMul
   return points + nonPointValuation * (starter ? starterMultiplier : 1);
 };
 
-const buildLineup = (selectedPlayers) => {
-  const startersByPosition = STARTER_POSITIONS.reduce((lineup, position) => {
-    lineup[position] = null;
-    return lineup;
-  }, {});
-  const benchPlayers = [];
-
-  selectedPlayers.forEach((player) => {
-    if (STARTER_POSITIONS.includes(player.position) && !startersByPosition[player.position]) {
-      startersByPosition[player.position] = player;
-      return;
-    }
-
-    benchPlayers.push(player);
-  });
-
-  return {
-    startersByPosition,
-    starterPlayers: STARTER_POSITIONS.map((position) => startersByPosition[position]).filter(Boolean),
-    benchPlayers,
-  };
-};
+const buildLineup = buildBanquigerLineup;
 
 export const buildPlayerMarket = (matchData = { matches, gameStats: playerGameStats, advancedStats: playerAdvancedStats }) => {
   const { matches: calendarMatches, gameStats, advancedStats } = matchData;
@@ -315,7 +295,7 @@ const rules = [
   {
     icon: UsersRound,
     title: 'Equipo de 7',
-    text: 'El equipo se compone de 5 titulares por posición y 2 suplentes libres.',
+    text: 'Cinco titulares y dos suplentes. Los jugadores con posición doble pueden cubrir cualquiera de sus dos puestos.',
   },
   {
     icon: BarChart3,
@@ -417,7 +397,7 @@ const PlayerToken = ({ player, row, compact = false, starter = false, slotLabel 
           {getShortName(player.name)}
         </p>
         <p className="mt-0.5 max-w-full truncate text-center text-[10px] font-bold uppercase text-gray-500">
-          {player.position}
+          {player.lineupPosition || formatBanquigerPositions(player)}
         </p>
       </div>
       <div className="mt-2 grid w-full grid-cols-2 gap-1 text-[10px] font-black">
@@ -603,7 +583,7 @@ const BanquigerPage = () => {
     ?? scoredTeams.find(team => team.id === ownTeamId)?.points ?? 0;
   const selectedPlayed = selectedPlayers.filter((player) => rowsByPlayer.get(player.id)?.played).length;
   const sortedMarket = [...marketPlayers]
-    .filter((player) => positionFilter === 'all' || player.position === positionFilter)
+    .filter((player) => positionFilter === 'all' || getBanquigerPositions(player).includes(positionFilter))
     .sort((first, second) => {
       if (priceSort === 'desc') return second.price - first.price || second.avgValuation - first.avgValuation;
       if (priceSort === 'asc') return first.price - second.price || second.avgValuation - first.avgValuation;
@@ -686,14 +666,12 @@ const BanquigerPage = () => {
         }, 0);
 
         const currentPlayers = currentIds.map((id) => marketPlayers.find((candidate) => candidate.id === id)).filter(Boolean);
-        const { startersByPosition: currentStarters, starterPlayers: currentStarterPlayers } = buildLineup(currentPlayers);
-        const starterSlotFilled = Boolean(currentStarters[player.position]);
-        const canUseBench = currentStarterPlayers.length === STARTER_POSITIONS.length;
+        const blockedByLineup = !canAddBanquigerPlayer(currentPlayers, player);
 
         if (
           currentIds.length >= teamSize ||
           currentCost + player.price > budget ||
-          (starterSlotFilled && !canUseBench)
+          blockedByLineup
         ) {
           nextIds = currentIds;
         } else {
@@ -1008,8 +986,7 @@ const BanquigerPage = () => {
           {sortedMarket.map((player) => {
             const selected = selectedIds.includes(player.id);
             const row = rowsByPlayer.get(player.id);
-            const starterPositionFilled = Boolean(startersByPosition[player.position]);
-            const blockedByLineup = starterPositionFilled && !startersComplete;
+            const blockedByLineup = !selected && !canAddBanquigerPlayer(selectedPlayers, player);
             const canBuy =
               settings.marketStatus === 'open' && (selected ||
               (
@@ -1032,7 +1009,7 @@ const BanquigerPage = () => {
                     <div className="min-w-0">
                       <h3 className="truncate text-sm font-black text-white">{player.name}</h3>
                       <p className="truncate text-xs text-gray-500">
-                        #{player.number} · {player.position} · {player.team === 'feminine' ? 'Femenino' : 'Masculino'}
+                        #{player.number} · {formatBanquigerPositions(player)} · {player.team === 'feminine' ? 'Femenino' : 'Masculino'}
                       </p>
                       {!selected && blockedByLineup && (
                         <p className="mt-0.5 truncate text-[10px] font-bold uppercase text-[hsl(43_65%_62%)]">

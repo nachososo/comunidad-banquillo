@@ -1,3 +1,4 @@
+import { getBanquigerPositions } from './banquigerPositions.js';
 import { defaultPowerCatalog, mergePowerCatalog } from './banquigerPowers.js';
 import { BANQUIGER_SEASON, buildBanquigerCalendarRounds, mergeBanquigerCalendarRounds } from './banquigerSchedule.js';
 
@@ -88,7 +89,9 @@ export const normalizeBanquigerPlayer = (player = {}) => ({
   id: String(player.id || '').trim(),
   name: String(player.name || '').trim(),
   number: Math.round(clampNumber(player.number, 0, 0, 999)),
-  position: player.position || 'Alero',
+  position: getBanquigerPositions(player)[0],
+  secondaryPositions: getBanquigerPositions(player).slice(1),
+  positionsVersion: 2,
   team: player.team === 'feminine' ? 'feminine' : 'masculine',
   games: Math.round(clampNumber(player.games, 0, 0, 200)),
   avgMinutes: clampNumber(player.avgMinutes, 0, 0, 60),

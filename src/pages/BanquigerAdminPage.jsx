@@ -1,3 +1,4 @@
+import { formatBanquigerPositions, getBanquigerPositions } from '@/utils/banquigerPositions.js';
 import { POWER_RARITIES, scorePowerRound } from '@/utils/banquigerPowers.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -63,6 +64,8 @@ const emptyPlayer = {
   name: '',
   number: 0,
   position: 'Base',
+  secondaryPositions: ['Escolta'],
+  positionsVersion: 2,
   team: 'masculine',
   games: 0,
   avgMinutes: 0,
@@ -172,7 +175,7 @@ const BanquigerAdminPage = () => {
     const normalizedQuery = query.trim().toLowerCase();
     return players
       .filter((player) => statusFilter === 'all' || (statusFilter === 'active' ? player.active : !player.active))
-      .filter((player) => `${player.name} ${player.number} ${player.position}`.toLowerCase().includes(normalizedQuery))
+      .filter((player) => `${player.name} ${player.number} ${formatBanquigerPositions(player)}`.toLowerCase().includes(normalizedQuery))
       .sort((a, b) => Number(b.active) - Number(a.active) || b.price - a.price);
   }, [players, query, statusFilter]);
 
@@ -468,7 +471,7 @@ const BanquigerAdminPage = () => {
               <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-black uppercase text-[hsl(43_65%_52%)]">Mercado</p><h2 className="text-xl font-black">Jugadores</h2></div><button type="button" onClick={startNewPlayer} className="inline-flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-xs font-black uppercase hover:bg-white/10"><Plus size={15} /> Añadir</button></div>
               <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto]"><label className="relative"><Search size={16} className="absolute left-3 top-3 text-gray-500" /><input className={`${inputClass} pl-9`} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar jugador" /></label><select className={inputClass} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select></div>
               <div className="max-h-[620px] space-y-2 overflow-y-auto pr-1">
-                {filteredPlayers.map((player) => <button type="button" key={player.id} onClick={() => selectPlayer(player)} className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-lg border p-3 text-left transition ${selectedId === player.id ? 'border-[hsl(43_65%_52%)] bg-[hsl(43_65%_52%_/_0.08)]' : 'border-white/5 bg-black/25 hover:border-white/20'}`}><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-black/50 text-sm font-black text-[hsl(43_65%_52%)]">#{player.number}</span><span className="min-w-0"><strong className="block truncate text-sm">{player.name}</strong><small className="text-gray-500">{player.position} · {player.active ? 'Activo' : 'Fuera del mercado'}</small></span><strong>{player.price.toFixed(1)}M</strong></button>)}
+                {filteredPlayers.map((player) => <button type="button" key={player.id} onClick={() => selectPlayer(player)} className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-lg border p-3 text-left transition ${selectedId === player.id ? 'border-[hsl(43_65%_52%)] bg-[hsl(43_65%_52%_/_0.08)]' : 'border-white/5 bg-black/25 hover:border-white/20'}`}><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-black/50 text-sm font-black text-[hsl(43_65%_52%)]">#{player.number}</span><span className="min-w-0"><strong className="block truncate text-sm">{player.name}</strong><small className="text-gray-500">{formatBanquigerPositions(player)} · {player.active ? 'Activo' : 'Fuera del mercado'}</small></span><strong>{player.price.toFixed(1)}M</strong></button>)}
               </div>
             </div>
 
@@ -477,7 +480,8 @@ const BanquigerAdminPage = () => {
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="sm:col-span-2"><span className="mb-2 block text-xs font-black uppercase text-gray-500">Nombre</span><input className={inputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
                 <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Dorsal</span><input className={inputClass} type="number" value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} /></label>
-                <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Posición</span><select className={inputClass} value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })}>{positions.map((position) => <option key={position}>{position}</option>)}</select></label>
+                <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Posición principal</span><select className={inputClass} value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value, secondaryPositions: getBanquigerPositions(form).slice(1).filter(position => position !== e.target.value), positionsVersion: 2 })}>{positions.map((position) => <option key={position}>{position}</option>)}</select></label>
+                <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Posición secundaria</span><select className={inputClass} value={getBanquigerPositions(form)[1] || ''} onChange={e => setForm({ ...form, secondaryPositions: e.target.value ? [e.target.value] : [], positionsVersion: 2 })}><option value="">Sin segunda posición</option>{positions.filter(position => position !== form.position).map(position => <option key={position} value={position}>{position}</option>)}</select></label>
                 <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Equipo</span><select className={inputClass} value={form.team} onChange={(e) => setForm({ ...form, team: e.target.value })}><option value="masculine">Masculino</option><option value="feminine">Femenino</option></select></label>
                 <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Precio (M)</span><input className={inputClass} type="number" min="0.5" step="0.1" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></label>
                 <label><span className="mb-2 block text-xs font-black uppercase text-gray-500">Valoración media</span><input className={inputClass} type="number" step="0.1" value={form.avgValuation} onChange={(e) => setForm({ ...form, avgValuation: e.target.value })} /></label>

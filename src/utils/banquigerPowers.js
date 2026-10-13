@@ -1,3 +1,4 @@
+import { buildBanquigerLineup } from './banquigerPositions.js';
 import { getValuation, parseMadeAttempt } from './statCalculations.js';
 const pos = (n) => Math.max(0, Number(n) || 0);
 const definitions = [
@@ -47,12 +48,10 @@ export const mergePowerCatalog = (stored = []) => {
 };
 export const powerDefinition = (power) => definitions.find(p => p.id === (power?.effect || power?.id));
 export const buildPowerLineup = (ids, players) => {
-  const filled = new Set();
-  return ids.map(String).map(id => players.find(p => String(p.id) === id)).filter(Boolean).map(player => {
-    const starter = !filled.has(player.position);
-    filled.add(player.position);
-    return { ...player, id: String(player.id), starter };
-  });
+  const selected = ids.map(String).map(id => players.find(p => String(p.id) === id)).filter(Boolean);
+  const { starterPlayers } = buildBanquigerLineup(selected);
+  const starterIds = new Set(starterPlayers.map(p => String(p.id)));
+  return selected.map(player => ({ ...player, id: String(player.id), starter: starterIds.has(String(player.id)) }));
 };
 export const powerPlayerRow = (game, stat, starter, multiplier = 2) => {
   const played = Boolean(game && !['00:00', '0:00', '-', ''].includes(String(game.minutes ?? '')));
