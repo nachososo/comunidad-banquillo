@@ -5,6 +5,8 @@ create temporary table power_verification(check_name text) on commit drop;
 do $$
 declare u uuid[]; t uuid[] := '{}'; team_id uuid; ids jsonb; first_round jsonb; next_round jsonb; ranking jsonb; state jsonb; power jsonb; targets jsonb; card jsonb; i int; j int; picked jsonb; rejected boolean;
 begin
+  -- Exclude real participants only inside this rolled-back fixture transaction.
+  update public.banquiger_teams set created_at=now()+interval '1 year' where season='2026-2027';
   u:=array[gen_random_uuid(),gen_random_uuid(),gen_random_uuid(),gen_random_uuid()];
   for i in 1..4 loop
     insert into auth.users(id,email) values(u[i],'powers-verification-'||u[i]||'@example.invalid');
@@ -23,7 +25,7 @@ begin
   update public.game_data set payload=(select jsonb_agg(case when r->>'id'=first_round->>'id' then r||jsonb_build_object('deadline',now()-interval '1 second') else r end) from jsonb_array_elements(payload) r) where key='banquiger:rounds';
   update public.matches set status='finished' where id=(first_round->>'matchId')::bigint;
   insert into public.player_stats(match_id,player_id,points,minutes) values((first_round->>'matchId')::bigint,(select id from public.players where team='masculine' limit 1),0,'00:00');
-  select jsonb_agg(jsonb_build_object('id',t[n]::text,'points',100-n,'selectedIds',ids) order by n) into ranking from generate_series(1,4) n;
+  select jsonb_agg(jsonb_build_object('id',t[n]::text,'points',100-n,'selectedIds',ids,'lineupSlots',(select lineup_slots from public.banquiger_teams where id=t[n])) order by n) into ranking from generate_series(1,4) n;
   state:=public.banquiger_finalize_round(first_round->>'name',ranking);
   if jsonb_array_length(state->'inventory')<>3 or jsonb_array_length(state->'results')<>1 then raise exception 'Rewards not assigned to three final-round losers'; end if;
   state:=public.banquiger_finalize_round(first_round->>'name',ranking);

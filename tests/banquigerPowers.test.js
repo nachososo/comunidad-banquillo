@@ -60,3 +60,17 @@ test('old four-card catalog migrates to 32 without allowing edits to change stre
   assert.equal(card.name,'Mi capitán'); assert.equal(card.effect,'l1'); assert.equal(card.rarity,'legendary'); assert.equal(card.cap,24); assert.equal(card.active,false);
   POWER_ODDS.forEach(odds=>assert.equal(odds.reduce((a,b)=>a+b),100));
 });
+
+test('manual off-position starters score x1, retain starter eligibility, and powers use the actual multiplier',()=>{
+  const players=['Base','Escolta','Alero','Ala-Pívot','Pívot','Pívot','Base'].map((position,i)=>({id:String(i),position,secondaryPositions:[],positionsVersion:2}));
+  const teams=[{id:'own',selectedIds:players.map(p=>p.id),lineupSlots:['4','1','2','3','0','5','6']}];
+  const gameStats=players.map(p=>({matchId:1,playerId:p.id,minutes:'20:00',points:10}));
+  const advancedStats=players.map(p=>({matchId:1,playerId:p.id,assists:2,oreb:1,dreb:1,steals:1,blocks:1,turnovers:1,fg:'4-6',ft:'2-3'}));
+  const base=scorePowerRound({teams,players,gameStats,advancedStats,matchId:1});
+  // Non-point valuation = 2: three compatible starters x2, two off-position starters + two reserves x1.
+  assert.equal(base[0].basePoints,90);
+  const own=(id)=>[{powerId:id,targets:[{teamId:'own',playerIds:['4']}]}];
+  assert.equal(scorePowerRound({teams,players,gameStats,advancedStats,matchId:1,uses:own('e8')})[0].powerDelta,0);
+  assert.equal(scorePowerRound({teams,players,gameStats,advancedStats,matchId:1,uses:own('r3')})[0].powerDelta,1.5);
+  assert.equal(scorePowerRound({teams,players,gameStats,advancedStats,matchId:1,uses:own('r7')})[0].powerDelta,-2);
+});

@@ -32,3 +32,13 @@ El quinteto busca la asignación que cubra más puestos sin duplicar jugadores. 
 La lógica compartida en `banquigerPositions.js` también decide titulares en el cálculo de puntos y poderes. Su equivalente SQL valida las siete fichas y las cartas de titular/suplente en el servidor. La migración adicional está en `supabase/banquiger-dual-positions.sql`.
 
 Validación: 19 pruebas de posiciones, poderes y calendario; 80 plantillas de contraste con idénticas asignaciones entre JavaScript y SQL; las siete comprobaciones transaccionales de cartas, privacidad y cierre de mercado siguen pasando.
+
+
+## Alineación libre y movimientos (14/10/2026)
+
+- Se mantienen siete fichajes, cinco titulares y dos suplentes, con el presupuesto configurado. Cualquier jugador puede ocupar cualquier puesto.
+- Solo los titulares en posición principal o secundaria reciben el multiplicador de estadísticas sin puntos (por defecto ×2). Titulares fuera de posición y suplentes puntúan ×1; puntos anotados siempre ×1. Penalizaciones y efectos que dependen de estadísticas usan el multiplicador efectivo.
+- `lineup_slots` guarda siete IDs o nulos en orden Base, Escolta, Alero, Ala-Pívot, Pívot, Suplente 1, Suplente 2. Se valida que cada fichaje aparezca una sola vez. `lineups[jornada][equipo]` congela los puestos junto a las plantillas históricas; los lectores anteriores de `snapshots` conservan su formato.
+- Arrastre con Pointer Events para ratón, lápiz y dedo; captura del puntero, intercambio en destinos ocupados, desplazamiento al borde de pantalla y alternativa por pulsación o teclado. El cierre de mercado se comprueba tanto en cliente como en servidor, incluidos cambios que solo afectan a los puestos.
+- Aplicar `supabase/banquiger-free-lineups.sql` después de los scripts anteriores de poderes y posiciones dobles. La migración conserva las alineaciones existentes y sus snapshots antes de introducir el emparejamiento libre.
+- Verificación: 21 pruebas de calendario/posiciones/poderes; 32 combinaciones comparadas entre JavaScript y SQL; scripts `banquiger-free-lineups-verification.sql` y `banquiger-powers-verification.sql` en transacciones con rollback. Arrastre, recuperación de ×2 en puesto natural, intercambio con suplente y bloqueo comprobados en navegador, también a 390 px de ancho. No se modificaron alineaciones reales durante las pruebas.

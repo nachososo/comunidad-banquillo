@@ -142,14 +142,14 @@ export const loadBanquigerTeam = async (userId, season = BANQUIGER_SEASON) => {
   if (!isSupabaseConfigured || !userId) return null;
   const { data, error } = await supabase
     .from('banquiger_teams')
-    .select('id,name,manager_name,budget,total_points,selected_ids,selected_match_id')
+    .select('id,name,manager_name,budget,total_points,selected_ids,lineup_slots,selected_match_id')
     .eq('user_id', userId)
     .eq('season', season)
     .maybeSingle();
   return error ? null : data;
 };
 
-export const saveBanquigerTeam = async ({ userId, managerName, teamName, budget, selectedIds, selectedMatchId, season = BANQUIGER_SEASON }) => {
+export const saveBanquigerTeam = async ({ userId, managerName, teamName, budget, selectedIds, lineupSlots, selectedMatchId, season = BANQUIGER_SEASON }) => {
   if (!isSupabaseConfigured || !userId) return { remote: false };
   const { data, error } = await supabase.from('banquiger_teams').upsert({
     user_id: userId,
@@ -158,6 +158,7 @@ export const saveBanquigerTeam = async ({ userId, managerName, teamName, budget,
     manager_name: managerName,
     budget,
     selected_ids: selectedIds,
+    ...(lineupSlots ? { lineup_slots: lineupSlots } : {}),
     selected_match_id: selectedMatchId || null,
   }, { onConflict: 'user_id,season' }).select().single();
   return { remote: !error, data, error };
@@ -167,7 +168,7 @@ export const loadBanquigerTeams = async (season = BANQUIGER_SEASON) => {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase
     .from('banquiger_teams')
-    .select('id,user_id,name,manager_name,budget,total_points,selected_ids,selected_match_id,created_at')
+    .select('id,user_id,name,manager_name,budget,total_points,selected_ids,lineup_slots,selected_match_id,created_at')
     .eq('season', season)
     .order('total_points', { ascending: false });
   return error ? [] : data || [];

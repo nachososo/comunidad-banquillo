@@ -12,15 +12,15 @@ const definitions = [
   ['c8', 'Banquillo frío', 'common', '-', 6, 'Un suplente rival pierde el 20% de su puntuación positiva; máximo 6.', 'f', 1, true, (r) => r.f * 0.2],
   ['r1', 'Turbo', 'rare', '+', 10, 'Un jugador propio suma el 25% de su puntuación positiva; máximo +10.', 'f', 1, false, (r) => r.f * 0.25],
   ['r2', 'Sexto hombre', 'rare', '+', 10, 'Un suplente que juegue recibe +2 y el bonus positivo de titular sin puntos; máximo +10.', 'f', 1, true, (r) => r.played ? 2 + pos(r.f - r.points) : 0],
-  ['r3', 'Segunda oportunidad', 'rare', '+', 10, 'Devuelve la mitad de las penalizaciones por tiros fallados de un jugador propio; máximo +10.', 'misses', 1, false, (r, p) => r.misses * (p.starter ? 1 : 0.5)],
+  ['r3', 'Segunda oportunidad', 'rare', '+', 10, 'Devuelve la mitad de las penalizaciones por tiros fallados de un jugador propio; máximo +10.', 'misses', 1, false, (r) => r.misses * (r.factor / 2)],
   ['r4', 'Pareja conectada', 'rare', '+', 10, 'Dos jugadores propios suman el 15% de sus puntuaciones positivas; máximo +10 conjunto.', 'f', 2, false, (r) => r.f * 0.15],
   ['r5', 'Defensa pegajosa', 'rare', '-', 10, 'Un jugador rival pierde el 25% de su puntuación positiva; máximo 10.', 'f', 1, false, (r) => r.f * 0.25],
   ['r6', 'Dos contra uno', 'rare', '-', 10, 'Dos jugadores de un rival pierden el 15% de sus puntuaciones positivas; máximo 10 conjunto.', 'f', 2, false, (r) => r.f * 0.15],
-  ['r7', 'Sin manos rápidas', 'rare', '-', 10, 'Un jugador rival pierde los puntos por robos y tapones, incluido x2 de titular; máximo 10.', 'defence', 1, false, (r, p) => r.defence * (p.starter ? 2 : 1)],
+  ['r7', 'Sin manos rápidas', 'rare', '-', 10, 'Un jugador rival pierde los puntos por robos y tapones, incluido x2 de titular; máximo 10.', 'defence', 1, false, (r) => r.defence * r.factor],
   ['r8', 'Fuego cruzado', 'rare', '-', 10, 'Un jugador de cada uno de dos rivales pierde el 10%; máximo 10 entre ambos.', 'f', 1, false, (r) => r.f * 0.1, 2],
   ['e1', 'Modo héroe', 'epic', '+', 16, 'Un jugador propio suma el 50% de su puntuación positiva; máximo +16.', 'f', 1, false, (r) => r.f * 0.5],
   ['e2', 'Dúo eléctrico', 'epic', '+', 16, 'Dos jugadores propios suman el 30% de sus puntuaciones positivas; máximo +16 conjunto.', 'f', 2, false, (r) => r.f * 0.3],
-  ['e3', 'Juego colectivo', 'epic', '+', 16, 'Suma un 50% extra de los puntos por rebotes y asistencias de un jugador propio, incluido x2; máximo +16.', 'rebounds', 1, false, (r, p) => (r.rebounds + r.assists) * (p.starter ? 1 : 0.5)],
+  ['e3', 'Juego colectivo', 'epic', '+', 16, 'Suma un 50% extra de los puntos por rebotes y asistencias de un jugador propio, incluido x2; máximo +16.', 'rebounds', 1, false, (r) => (r.rebounds + r.assists) * (r.factor / 2)],
   ['e4', 'Revulsivo', 'epic', '+', 16, 'Un suplente propio duplica su puntuación positiva; máximo +16.', 'f', 1, true, (r) => r.f],
   ['e5', 'Marcaje especial', 'epic', '-', 16, 'Un jugador rival pierde la mitad de su puntuación positiva; máximo 16.', 'f', 1, false, (r) => r.f * 0.5],
   ['e6', 'Triángulo defensivo', 'epic', '-', 16, 'Tres jugadores de un rival pierden el 20%; máximo 16 conjunto.', 'f', 3, false, (r) => r.f * 0.2],
@@ -47,18 +47,18 @@ export const mergePowerCatalog = (stored = []) => {
   return defaultPowerCatalog.map(p => { const saved = overrides.get(p.id); return { ...p, name: saved?.name || p.name, description: saved?.description || p.description, active: saved?.active !== false }; });
 };
 export const powerDefinition = (power) => definitions.find(p => p.id === (power?.effect || power?.id));
-export const buildPowerLineup = (ids, players) => {
+export const buildPowerLineup = (ids, players, slots = null) => {
   const selected = ids.map(String).map(id => players.find(p => String(p.id) === id)).filter(Boolean);
-  const { starterPlayers } = buildBanquigerLineup(selected);
+  const { starterPlayers } = buildBanquigerLineup(selected, slots);
   const starterIds = new Set(starterPlayers.map(p => String(p.id)));
-  return selected.map(player => ({ ...player, id: String(player.id), starter: starterIds.has(String(player.id)) }));
+  return selected.map(player => ({ ...player, id: String(player.id), starter: starterIds.has(String(player.id)), inPosition: starterPlayers.find(p => String(p.id) === String(player.id))?.inPosition || false }));
 };
 export const powerPlayerRow = (game, stat, starter, multiplier = 2) => {
   const played = Boolean(game && !['00:00', '0:00', '-', ''].includes(String(game.minutes ?? '')));
-  if (!played) return { f: 0, played: false, points: 0, assists: 0, rebounds: 0, threes: 0, defence: 0, misses: 0, bonus: 0 };
+  if (!played) return { f: 0, played: false, points: 0, assists: 0, rebounds: 0, threes: 0, defence: 0, misses: 0, bonus: 0, factor: starter ? multiplier : 1 };
   const points = Number(game.points) || 0, nonPoints = (getValuation(stat, points) ?? points) - points;
   const fg = parseMadeAttempt(stat?.fg), ft = parseMadeAttempt(stat?.ft);
-  return { f: points + nonPoints * (starter ? multiplier : 1), played, points,
+  return { factor: starter ? multiplier : 1, f: points + nonPoints * (starter ? multiplier : 1), played, points,
     assists: stat?.assists || 0, rebounds: (stat?.oreb || 0) + (stat?.dreb || 0),
     threes: parseMadeAttempt(stat?.threePt).made, defence: (stat?.steals || 0) + (stat?.blocks || 0),
     misses: Math.max(0, fg.attempted - fg.made) + Math.max(0, ft.attempted - ft.made),
@@ -69,7 +69,7 @@ export const powerPlayerRow = (game, stat, starter, multiplier = 2) => {
 export const scorePowerRound = ({ teams, players, gameStats, advancedStats, matchId, uses = [], multiplier = 2 }) => {
   const games = new Map(gameStats.filter(s => s.matchId === matchId).map(s => [String(s.playerId), s]));
   const advanced = new Map(advancedStats.filter(s => s.matchId === matchId).map(s => [String(s.playerId), s]));
-  const lineups = new Map(teams.map(t => [String(t.id), buildPowerLineup(t.selectedIds || [], players).map(p => ({ ...p, row: powerPlayerRow(games.get(p.id), advanced.get(p.id), p.starter, multiplier) }))]));
+  const lineups = new Map(teams.map(t => [String(t.id), buildPowerLineup(t.selectedIds || [], players, t.lineupSlots).map(p => ({ ...p, row: powerPlayerRow(games.get(p.id), advanced.get(p.id), p.starter && p.inPosition, multiplier) }))]));
   const changes = [];
   for (const use of uses) {
     const card = powerDefinition(use.power || { id: use.powerId });

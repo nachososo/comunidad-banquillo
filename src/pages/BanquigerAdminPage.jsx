@@ -322,6 +322,7 @@ const BanquigerAdminPage = () => {
         teams: teams.filter(team => Date.parse(team.created_at) < Date.parse(target.deadline)).map(team => ({
           id: String(team.id), team: team.name,
           selectedIds: ledger.data.snapshots?.[target.name]?.[String(team.id)] || (team.selected_ids || []).map(String),
+          lineupSlots: ledger.data.lineups?.[target.name]?.[String(team.id)] || team.lineup_slots,
         })).filter(team => team.selectedIds.length === 7),
         players, gameStats: data.gameStats, advancedStats: data.advancedStats,
         matchId: target.matchId, multiplier: settings.starterNonPointMultiplier,

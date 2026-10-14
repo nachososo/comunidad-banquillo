@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BANQUIGER_POSITIONS, buildBanquigerLineup, getBanquigerPositions, canAddBanquigerPlayer } from '../src/utils/banquigerPositions.js';
+import { BANQUIGER_POSITIONS, buildBanquigerLineup, getBanquigerPositions, canAddBanquigerPlayer, moveBanquigerPlayer, reconcileBanquigerSlots } from '../src/utils/banquigerPositions.js';
 import { buildPowerLineup } from '../src/utils/banquigerPowers.js';
 const player=(id,position,secondaryPositions=[])=>({id,position,secondaryPositions,positionsVersion:2});
 test('defaults match the five agreed pairs; explicit single positions remain editable',()=>{
@@ -30,8 +30,24 @@ test('prefers primary positions, retains existing full lineups and never fills t
   assert.equal(buildBanquigerLineup([team[0]]).starterPlayers.length,1);
   assert.equal(buildBanquigerLineup([]).starterPlayers.length,0);
 });
-test('incompatible seven-player rosters stay incomplete',()=>{
+test('seven players sharing the same positions can now complete the team',()=>{
   const team=Array.from({length:7},(_,i)=>player(String(i),'Base',['Escolta']));
-  assert.equal(buildBanquigerLineup(team).starterPlayers.length,2);
-  assert.equal(canAddBanquigerPlayer(team.slice(0,2),team[2]),false);
+  assert.equal(buildBanquigerLineup(team).starterPlayers.length,5);
+  assert.equal(canAddBanquigerPlayer(team.slice(0,2),team[2]),true);
+});
+
+test('manual slots swap starters and reserves, keep off-position roles, and survive roster changes',()=>{
+  const team=BANQUIGER_POSITIONS.map((position,i)=>player(String(i),position));
+  team.push(player('5','Pívot'),player('6','Base'));
+  const initial=buildBanquigerLineup(team).slots;
+  const moved=moveBanquigerPlayer(initial,0,4);
+  const lineup=buildBanquigerLineup(team,moved);
+  assert.equal(lineup.startersByPosition.Base.id,'4');
+  assert.equal(lineup.startersByPosition.Base.inPosition,false);
+  const benched=moveBanquigerPlayer(moved,4,5);
+  assert.equal(buildPowerLineup(team.map(p=>p.id),team,benched).find(p=>p.id==='0').starter,false);
+  assert.deepEqual(reconcileBanquigerSlots(team,benched),benched);
+  assert.equal(new Set(benched).size,7);
+  const removed=reconcileBanquigerSlots(team.filter(p=>p.id!=='0'),benched);
+  assert.equal(removed[5],null);
 });

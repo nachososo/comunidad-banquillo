@@ -1,7 +1,8 @@
-import { buildBanquigerLineup, canAddBanquigerPlayer, formatBanquigerPositions, getBanquigerPositions } from '@/utils/banquigerPositions.js';
+import { buildBanquigerLineup, reconcileBanquigerSlots, moveBanquigerPlayer, formatBanquigerPositions, getBanquigerPositions } from '@/utils/banquigerPositions.js';
+import BanquigerLineupBoard from '@/components/BanquigerLineupBoard.jsx';
 import BanquigerPowers from '@/components/BanquigerPowers.jsx';
 import { buildPowerLineup, scorePowerRound } from '@/utils/banquigerPowers.js';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
@@ -295,12 +296,12 @@ const rules = [
   {
     icon: UsersRound,
     title: 'Equipo de 7',
-    text: 'Cinco titulares y dos suplentes. Los jugadores con posición doble pueden cubrir cualquiera de sus dos puestos.',
+    text: 'Cinco titulares y dos suplentes, sin restricciones de posición. Titulares en su posición principal o secundaria: ×2 excepto puntos anotados. Fuera de posición: ×1.',
   },
   {
     icon: BarChart3,
     title: 'Puntuación semanal',
-    text: 'Los titulares duplican la valoración de todo lo que no sean puntos.',
+    text: 'Los titulares en una de sus posiciones duplican las estadísticas que puntúan, incluidas penalizaciones, excepto los puntos anotados. Fuera de posición y suplentes: ×1.',
   },
   {
     icon: ArrowRightLeft,
@@ -385,12 +386,13 @@ const PlayerToken = ({ player, row, compact = false, starter = false, slotLabel 
     );
   }
 
-  const valuation = row?.played ? getFantasyValuation(row.gameStat, row.advancedStat, starter) : 0;
+  const eligibleMultiplier = starter && player.inPosition !== false;
+  const valuation = row?.played ? getFantasyValuation(row.gameStat, row.advancedStat, eligibleMultiplier) : 0;
 
   return (
     <div className="relative flex min-h-[132px] flex-col items-center justify-between rounded-lg border border-[hsl(43_65%_52%_/_0.32)] bg-gradient-to-b from-[#17120a] to-[#050505] px-2 py-2 text-center shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
       <div className="flex w-full flex-1 flex-col items-center justify-center">
-        <JerseyVisual player={player} starter={starter} size={compact ? 'sm' : 'md'} />
+        <JerseyVisual player={player} starter={eligibleMultiplier} size={compact ? 'sm' : 'md'} />
         <p
           className={`${compact ? 'text-[11px]' : 'text-xs'} mt-1 max-w-full truncate text-center font-black leading-tight text-white`}
         >
@@ -398,7 +400,9 @@ const PlayerToken = ({ player, row, compact = false, starter = false, slotLabel 
         </p>
         <p className="mt-0.5 max-w-full truncate text-center text-[10px] font-bold uppercase text-gray-500">
           {player.lineupPosition || formatBanquigerPositions(player)}
+          {!eligibleMultiplier && <span className="ml-1 text-amber-300">×1</span>}
         </p>
+        {starter && <p className="mt-0.5 max-w-full truncate text-[9px] text-gray-400">{formatBanquigerPositions(player)}</p>}
       </div>
       <div className="mt-2 grid w-full grid-cols-2 gap-1 text-[10px] font-black">
         <span className="rounded bg-black/45 px-1 py-1 text-[hsl(43_65%_52%)]">{formatMoney(player.price)}</span>
@@ -442,6 +446,7 @@ const BanquigerPage = () => {
   const [isEditingTeamName, setIsEditingTeamName] = useState(false);
   const [teamNameNotice, setTeamNameNotice] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
+  const [lineupSlots, setLineupSlots] = useState(null);
   const [positionFilter, setPositionFilter] = useState('all');
   const [priceSort, setPriceSort] = useState('all');
   const [valuationSort, setValuationSort] = useState('all');
@@ -452,6 +457,7 @@ const BanquigerPage = () => {
   const [powerState, setPowerState] = useState(emptyBanquigerLeague);
   const [powerNotice, setPowerNotice] = useState('');
   const [registeredTeams, setRegisteredTeams] = useState([]);
+  const persistenceQueue = useRef(Promise.resolve());
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
@@ -484,6 +490,7 @@ const BanquigerPage = () => {
     if (!isAuthenticated || !user) return;
     let active = true;
     setSelectedIds([]);
+    setLineupSlots(null);
     setTeamName('Mi Banquiger');
     const savedTeam = window.localStorage.getItem(teamStorageKey);
     if (savedTeam) {
@@ -491,6 +498,7 @@ const BanquigerPage = () => {
         const parsed = JSON.parse(savedTeam);
         setManagerName(user.name || parsed.managerName || 'Manager');
         setTeamName(parsed.teamName || 'Mi Banquiger');
+        setLineupSlots(parsed.lineupSlots || null);
         setSelectedIds(Array.isArray(parsed.selectedIds) ? parsed.selectedIds.map(String) : []);
       } catch {
         window.localStorage.removeItem(teamStorageKey);
@@ -500,6 +508,7 @@ const BanquigerPage = () => {
       if (!active || !team) return;
       setManagerName(team.manager_name || user.name || 'Manager');
       setTeamName(team.name || 'Mi Banquiger');
+      setLineupSlots(team.lineup_slots || null);
       setSelectedIds(Array.isArray(team.selected_ids) ? team.selected_ids.map(String) : []);
     });
     return () => { active = false; };
@@ -559,9 +568,9 @@ const BanquigerPage = () => {
     [latestPublishedMatch?.id, marketPlayers, matchData],
   );
   const rowsByPlayer = useMemo(() => new Map(matchRows.map((row) => [row.player.id, row])), [matchRows]);
-  const { startersByPosition, starterPlayers, benchPlayers } = useMemo(
-    () => buildLineup(selectedPlayers),
-    [selectedPlayers],
+  const { startersByPosition, starterPlayers, benchPlayers, slots: resolvedSlots } = useMemo(
+    () => buildLineup(selectedPlayers, lineupSlots),
+    [selectedPlayers, lineupSlots],
   );
   const selectedCost = selectedPlayers.reduce((total, player) => total + player.price, 0);
   const remainingBudget = budget - selectedCost;
@@ -572,9 +581,10 @@ const BanquigerPage = () => {
   const powerTeams = registeredTeams.map(team => ({
     id: String(team.id), team: team.user_id === user?.id ? teamName : team.name,
     selectedIds: team.user_id === user?.id ? selectedIds : (team.selected_ids || []).map(String),
+    lineupSlots: team.user_id === user?.id ? resolvedSlots : team.lineup_slots,
   }));
   const scoredTeams = scorePowerRound({
-    teams: powerTeams.map(team => ({ ...team, selectedIds: powerState.snapshots?.[scoringRound?.name]?.[team.id] || team.selectedIds })),
+    teams: powerTeams.map(team => ({ ...team, selectedIds: powerState.snapshots?.[scoringRound?.name]?.[team.id] || team.selectedIds, lineupSlots: powerState.lineups?.[scoringRound?.name]?.[team.id] || team.lineupSlots })),
     players: marketPlayers, gameStats: matchData.gameStats, advancedStats: matchData.advancedStats,
     matchId: latestPublishedMatch?.id, multiplier: settings.starterNonPointMultiplier,
     uses: powerState.uses.filter(use => use.round === scoringRound?.name),
@@ -606,35 +616,40 @@ const BanquigerPage = () => {
       manager: current ? managerName || team.manager_name || 'Manager' : team.manager_name || 'Manager',
       team: current ? teamName : team.name,
       points: (Number(team.total_points) || 0) + (settled ? 0 : preview?.points || 0),
-      selectedIds: current ? selectedIds : (team.selected_ids || []).map(String), current,
+      selectedIds: current ? selectedIds : (team.selected_ids || []).map(String),
+      lineupSlots: current ? resolvedSlots : team.lineup_slots, current,
     };
   }).sort((a, b) => b.points - a.points || (a.current ? ownTeamId : a.id).localeCompare(b.current ? ownTeamId : b.id));
 
-  const persistTeam = (nextSelectedIds = selectedIds, nextTeamName = teamName) => {
+  const persistTeam = (nextSelectedIds = selectedIds, nextTeamName = teamName, nextSlots = resolvedSlots) => {
     window.localStorage.setItem(
       teamStorageKey,
       JSON.stringify({
         managerName,
         teamName: nextTeamName,
         selectedIds: nextSelectedIds,
+        lineupSlots: nextSlots,
       }),
     );
-    void saveBanquigerTeam({
+    persistenceQueue.current = persistenceQueue.current.catch(() => {}).then(() => saveBanquigerTeam({
       userId: user?.id,
       managerName: managerName || user?.name,
       teamName: nextTeamName,
       budget,
       selectedIds: nextSelectedIds,
+      lineupSlots: nextSlots,
       selectedMatchId: currentRound?.matchId,
       season: BANQUIGER_SEASON,
-    }).then(({ data, error }) => {
-      if (error) { setTeamNameNotice(error.message); setSaved(false); return; }
-      if (!data) return;
+    })).then(({ data, error }) => {
+      if (error) { setTeamNameNotice(error.message); setSaved(false); return false; }
+      if (!data) return true;
       setRegisteredTeams((currentTeams) => {
         const remainingTeams = currentTeams.filter((team) => team.id !== data.id);
         return [...remainingTeams, data];
       });
-    });
+      return true;
+    }).catch(error => { setTeamNameNotice(error.message || 'No se ha podido guardar la alineación.'); setSaved(false); return false; });
+    return persistenceQueue.current;
   };
 
   const saveTeamName = (event) => {
@@ -654,41 +669,30 @@ const BanquigerPage = () => {
   const togglePlayer = (player) => {
     if (resolveBanquigerSchedule(storedSettings, rounds).settings.marketStatus !== 'open') return;
     setSaved(false);
-    setSelectedIds((currentIds) => {
-      let nextIds;
-
-      if (currentIds.includes(player.id)) {
-        nextIds = currentIds.filter((id) => id !== player.id);
-      } else {
-        const currentCost = currentIds.reduce((total, id) => {
-          const currentPlayer = marketPlayers.find((candidate) => candidate.id === id);
-          return total + (currentPlayer?.price ?? 0);
-        }, 0);
-
-        const currentPlayers = currentIds.map((id) => marketPlayers.find((candidate) => candidate.id === id)).filter(Boolean);
-        const blockedByLineup = !canAddBanquigerPlayer(currentPlayers, player);
-
-        if (
-          currentIds.length >= teamSize ||
-          currentCost + player.price > budget ||
-          blockedByLineup
-        ) {
-          nextIds = currentIds;
-        } else {
-          nextIds = [...currentIds, player.id];
-        }
-      }
-
-      persistTeam(nextIds);
-
-      return nextIds;
-    });
+    const nextIds = selectedIds.includes(player.id)
+      ? selectedIds.filter(id => id !== player.id)
+      : selectedIds.length < teamSize && selectedCost + player.price <= budget ? [...selectedIds, player.id] : selectedIds;
+    if (nextIds === selectedIds) return;
+    const nextPlayers = nextIds.map(id => marketPlayers.find(candidate => candidate.id === id)).filter(Boolean);
+    const nextSlots = reconcileBanquigerSlots(nextPlayers, lineupSlots);
+    setSelectedIds(nextIds);
+    setLineupSlots(nextSlots);
+    persistTeam(nextIds, teamName, nextSlots);
   };
 
-  const saveTeam = () => {
+  const movePlayer = (from, to) => {
     if (resolveBanquigerSchedule(storedSettings, rounds).settings.marketStatus !== 'open') return;
-    persistTeam();
-    setSaved(true);
+    const next = moveBanquigerPlayer(resolvedSlots, from, to);
+    if (next === resolvedSlots) return;
+    setLineupSlots(next);
+    setSaved(false);
+    persistTeam(selectedIds, teamName, next);
+  };
+
+  const saveTeam = async () => {
+    if (resolveBanquigerSchedule(storedSettings, rounds).settings.marketStatus !== 'open') return;
+    const completed = await persistTeam();
+    setSaved(Boolean(completed));
   };
 
   const resetTeam = () => {
@@ -696,7 +700,8 @@ const BanquigerPage = () => {
     setSelectedIds([]);
     setSaved(false);
     window.localStorage.removeItem(teamStorageKey);
-    persistTeam([]);
+    setLineupSlots(null);
+    persistTeam([], teamName, Array(7).fill(null));
   };
 
   const availablePowerCards = powerState.inventory
@@ -710,69 +715,12 @@ const BanquigerPage = () => {
   };
 
   const renderLineupPreview = () => (
-    <div className="space-y-3">
-      <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#111827] p-3">
-        <div className="absolute inset-0 opacity-40">
-          <div className="absolute left-1/2 top-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/45" />
-          <div className="absolute left-5 right-5 top-5 h-28 rounded-b-[4rem] border-x-2 border-b-2 border-white/35" />
-          <div className="absolute left-1/2 top-5 h-28 w-px -translate-x-1/2 bg-white/30" />
-          <div className="absolute inset-x-0 bottom-12 h-px bg-white/20" />
-        </div>
-        <div className="relative grid min-h-[360px] grid-rows-[1fr_1fr_1fr] gap-3">
-          <div className="grid grid-cols-3 items-start gap-3">
-            <div />
-            <PlayerToken
-              player={startersByPosition['Pívot']}
-              row={rowsByPlayer.get(startersByPosition['Pívot']?.id)}
-              compact
-              starter
-              slotLabel="Pívot"
-            />
-            <div />
-          </div>
-          <div className="grid grid-cols-2 items-center gap-3">
-            <PlayerToken
-              player={startersByPosition['Alero']}
-              row={rowsByPlayer.get(startersByPosition['Alero']?.id)}
-              compact
-              starter
-              slotLabel="Alero"
-            />
-            <PlayerToken
-              player={startersByPosition['Ala-Pívot']}
-              row={rowsByPlayer.get(startersByPosition['Ala-Pívot']?.id)}
-              compact
-              starter
-              slotLabel="Ala-Pívot"
-            />
-          </div>
-          <div className="grid grid-cols-2 items-end gap-3">
-            <PlayerToken
-              player={startersByPosition.Base}
-              row={rowsByPlayer.get(startersByPosition.Base?.id)}
-              compact
-              starter
-              slotLabel="Base"
-            />
-            <PlayerToken
-              player={startersByPosition.Escolta}
-              row={rowsByPlayer.get(startersByPosition.Escolta?.id)}
-              compact
-              starter
-              slotLabel="Escolta"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <p className="mb-2 w-full max-w-none text-center text-xs font-bold uppercase text-gray-500">Banquillo</p>
-        <div className="grid grid-cols-2 gap-3">
-          <PlayerToken player={benchPlayers[0]} row={rowsByPlayer.get(benchPlayers[0]?.id)} compact slotLabel="Suplente" />
-          <PlayerToken player={benchPlayers[1]} row={rowsByPlayer.get(benchPlayers[1]?.id)} compact slotLabel="Suplente" />
-        </div>
-      </div>
-    </div>
+    <BanquigerLineupBoard slots={resolvedSlots} players={selectedPlayers}
+      disabled={settings.marketStatus !== 'open'} onMove={movePlayer}
+      renderPlayer={(player, index, label) => {
+        const placed = index < 5 && player ? startersByPosition[STARTER_POSITIONS[index]] : player;
+        return <PlayerToken player={placed} row={rowsByPlayer.get(player?.id)} compact starter={index < 5} slotLabel={label} />;
+      }} />
   );
 
   const renderRankingTeamModal = () => {
@@ -784,7 +732,7 @@ const BanquigerPage = () => {
     const {
       startersByPosition: viewedStartersByPosition,
       benchPlayers: viewedBenchPlayers,
-    } = buildLineup(viewedPlayers);
+    } = buildLineup(viewedPlayers, viewedRankingTeam.lineupSlots);
     const viewedCost = viewedPlayers.reduce((total, player) => total + player.price, 0);
 
     const modalToken = (player, slotLabel, starter = false) => (
@@ -865,7 +813,7 @@ const BanquigerPage = () => {
             <p className="text-xs font-bold uppercase text-[hsl(43_65%_52%)]">{teamName}</p>
             <h2 className="text-xl font-black text-white">Mi plantilla</h2>
             <p className="mt-1 text-xs text-gray-500">
-              Quinteto: Base, Escolta, Alero, Ala-Pívot y Pívot. Banquillo: posición libre.
+              Cualquier jugador puede ocupar cualquier puesto. ×2 en su posición principal o secundaria; ×1 fuera de ellas y en el banquillo. Puntos anotados siempre ×1.
             </p>
           </div>
           <div className="flex gap-2">
@@ -895,71 +843,11 @@ const BanquigerPage = () => {
           </p>
         )}
 
-        <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#c9a66b] p-3">
-          <div className="absolute inset-0 opacity-45">
-            <div className="absolute left-1/2 top-1/2 h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/70" />
-            <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-white/65" />
-            <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-white/65" />
-            <div className="absolute left-5 right-5 top-5 bottom-5 rounded-[2rem] border-2 border-white/60" />
-          </div>
-          <div className="relative grid min-h-[360px] grid-rows-[1fr_1fr_1fr] gap-3">
-            <div className="grid grid-cols-3 items-start gap-3">
-              <div />
-              <PlayerToken
-                player={startersByPosition['Pívot']}
-                row={rowsByPlayer.get(startersByPosition['Pívot']?.id)}
-                compact
-                starter
-                slotLabel="Pívot"
-              />
-              <div />
-            </div>
-            <div className="grid grid-cols-2 items-center gap-3">
-              <PlayerToken
-                player={startersByPosition['Alero']}
-                row={rowsByPlayer.get(startersByPosition['Alero']?.id)}
-                compact
-                starter
-                slotLabel="Alero"
-              />
-              <PlayerToken
-                player={startersByPosition['Ala-Pívot']}
-                row={rowsByPlayer.get(startersByPosition['Ala-Pívot']?.id)}
-                compact
-                starter
-                slotLabel="Ala-Pívot"
-              />
-            </div>
-            <div className="grid grid-cols-2 items-end gap-3">
-              <PlayerToken
-                player={startersByPosition.Base}
-                row={rowsByPlayer.get(startersByPosition.Base?.id)}
-                compact
-                starter
-                slotLabel="Base"
-              />
-              <PlayerToken
-                player={startersByPosition.Escolta}
-                row={rowsByPlayer.get(startersByPosition.Escolta?.id)}
-                compact
-                starter
-                slotLabel="Escolta"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3">
-          <p className="mb-2 w-full max-w-none text-center text-xs font-bold uppercase text-gray-500">Banquillo</p>
-          <div className="grid grid-cols-2 gap-3">
-            <PlayerToken player={benchPlayers[0]} row={rowsByPlayer.get(benchPlayers[0]?.id)} compact slotLabel="Suplente" />
-            <PlayerToken player={benchPlayers[1]} row={rowsByPlayer.get(benchPlayers[1]?.id)} compact slotLabel="Suplente" />
-          </div>
-        </div>
+        {renderLineupPreview()}
 
         {saved && (
           <p className="mt-3 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-center text-xs font-bold text-green-200">
-            Equipo guardado en este dispositivo.
+            Alineación guardada.
           </p>
         )}
       </div>
@@ -986,13 +874,11 @@ const BanquigerPage = () => {
           {sortedMarket.map((player) => {
             const selected = selectedIds.includes(player.id);
             const row = rowsByPlayer.get(player.id);
-            const blockedByLineup = !selected && !canAddBanquigerPlayer(selectedPlayers, player);
             const canBuy =
               settings.marketStatus === 'open' && (selected ||
               (
                 selectedIds.length < teamSize &&
-                remainingBudget >= player.price &&
-                !blockedByLineup));
+                remainingBudget >= player.price));
 
             return (
               <article
@@ -1011,11 +897,7 @@ const BanquigerPage = () => {
                       <p className="truncate text-xs text-gray-500">
                         #{player.number} · {formatBanquigerPositions(player)} · {player.team === 'feminine' ? 'Femenino' : 'Masculino'}
                       </p>
-                      {!selected && blockedByLineup && (
-                        <p className="mt-0.5 truncate text-[10px] font-bold uppercase text-[hsl(43_65%_62%)]">
-                          Completa el quinteto primero
-                        </p>
-                      )}
+
                     </div>
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-1 text-center text-[10px] font-black sm:grid-cols-4">
@@ -1090,7 +972,7 @@ const BanquigerPage = () => {
 
   const renderPowers = () => <BanquigerPowers
     cards={availablePowerCards} catalog={powers}
-    teams={powerTeams.map(team => ({ ...team, lineup: buildPowerLineup(team.selectedIds, marketPlayers) }))}
+    teams={powerTeams.map(team => ({ ...team, lineup: buildPowerLineup(team.selectedIds, marketPlayers, team.lineupSlots) }))}
     sourceTeamId={ownTeamId} uses={currentPowerUses}
     open={settings.marketStatus === 'open'} onUse={usePower} notice={powerNotice}
   />;
