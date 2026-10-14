@@ -6,7 +6,6 @@ export default function BanquigerLineupBoard({ slots, players, disabled, onMove,
   const board = useRef(null);
   const pointer = useRef(null);
   const [drag, setDrag] = useState(null);
-  const [notice, setNotice] = useState('');
   const dragging = Boolean(drag);
   const dragY = drag?.y;
   useEffect(() => {
@@ -24,7 +23,6 @@ export default function BanquigerLineupBoard({ slots, players, disabled, onMove,
   const move = (from, to) => {
     if (disabled || from == null || to == null || from === to) return;
     onMove(from, to);
-    setNotice(`${byId.get(slots[from])?.name || 'Jugador'} colocado en ${BANQUIGER_SLOT_LABELS[to]}.`);
   };
   const token = (index) => {
     const player = byId.get(slots[index]) || null;
@@ -71,9 +69,8 @@ export default function BanquigerLineupBoard({ slots, players, disabled, onMove,
         <div className="relative mt-3 grid grid-cols-2 gap-3">{token(2)}{token(3)}</div>
         <div className="relative mt-3 grid grid-cols-2 gap-3">{token(0)}{token(1)}</div>
       </div>
-      <p className="text-center text-xs font-bold uppercase text-gray-500">Banquillo</p>
+      <p className="w-full max-w-none text-center text-xs font-bold uppercase text-gray-500">Banquillo</p>
       <div className="grid grid-cols-2 gap-3">{token(5)}{token(6)}</div>
-      <p role="status" aria-live="polite" className="min-h-4 text-xs text-[hsl(43_65%_52%)]">{notice}</p>
       {drag && <div className="pointer-events-none fixed z-[100] rounded-lg bg-black/90 px-3 py-2 text-xs font-bold text-white shadow-lg" style={{ left: drag.x + 12, top: drag.y + 12 }}>{byId.get(slots[drag.from])?.name}</div>}
     </div>
   );
