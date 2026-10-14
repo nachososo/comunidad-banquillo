@@ -1,13 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { GripVertical } from 'lucide-react';
 import { BANQUIGER_SLOT_LABELS } from '@/utils/banquigerPositions.js';
 
 // Pointer capture handles mouse, pen and touch without native HTML drag/drop.
 export default function BanquigerLineupBoard({ slots, players, disabled, onMove, renderPlayer }) {
   const board = useRef(null);
   const pointer = useRef(null);
-  const suppressClick = useRef(false);
-  const [chosen, setChosen] = useState(null);
   const [drag, setDrag] = useState(null);
   const [notice, setNotice] = useState('');
   const dragging = Boolean(drag);
@@ -33,11 +30,10 @@ export default function BanquigerLineupBoard({ slots, players, disabled, onMove,
     const player = byId.get(slots[index]) || null;
     const label = BANQUIGER_SLOT_LABELS[index];
     return (
-      <div key={label} onContextMenu={event => { if (!disabled) event.preventDefault(); }} data-lineup-slot={index} className={`relative select-none ${disabled ? 'touch-auto' : 'touch-none'} rounded-lg ${drag?.to === index || chosen === index ? 'ring-2 ring-[hsl(43_65%_52%)]' : ''}`}
+      <div key={label} onContextMenu={event => { if (!disabled) event.preventDefault(); }} data-lineup-slot={index} className={`relative select-none ${disabled ? 'touch-auto' : player ? 'touch-none cursor-grab active:cursor-grabbing' : 'touch-auto'} rounded-lg ${drag?.to === index ? 'ring-2 ring-[hsl(43_65%_52%)]' : ''}`}
           onPointerDown={(event) => {
-            suppressClick.current = false;
             if (disabled || !player || event.button !== 0) return;
-            (event.target.closest('button') || event.currentTarget).setPointerCapture(event.pointerId);
+            event.currentTarget.setPointerCapture(event.pointerId);
             pointer.current = { from: index, x: event.clientX, y: event.clientY, id: event.pointerId, moving: false };
           }}
           onPointerMove={(event) => {
@@ -51,32 +47,19 @@ export default function BanquigerLineupBoard({ slots, players, disabled, onMove,
             pointer.current = null;
             setDrag(null);
             if (active?.moving) {
-              suppressClick.current = true;
               move(active.from, destination(event));
-              setChosen(null);
             }
           }}
           onPointerCancel={() => { pointer.current = null; setDrag(null); }}
 >
         {renderPlayer(player, index, label)}
-        <button type="button" disabled={disabled || (!player && chosen == null)}
-          aria-label={chosen != null ? `Colocar jugador en ${label}` : `Mover ${player?.name || 'jugador'} desde ${label}`}
-          aria-pressed={chosen === index}
-          className="mt-1 flex min-h-9 w-full touch-none items-center justify-center gap-1 rounded bg-black/65 px-1 text-[10px] font-bold text-white disabled:opacity-40"
-          onClick={() => {
-            if (suppressClick.current) { suppressClick.current = false; return; }
-            if (chosen == null) setChosen(index);
-            else { move(chosen, index); setChosen(null); }
-          }}
-          onKeyDown={(event) => { if (event.key === 'Escape') setChosen(null); }}>
-          <GripVertical size={14} /> {chosen != null ? 'Colocar aquí' : 'Mover'}
-        </button>
+
       </div>
     );
   };
   return (
     <div ref={board} className="space-y-3">
-      <p className="text-xs leading-relaxed text-gray-400">{disabled ? 'Alineación cerrada para esta jornada.' : 'Arrastra la tarjeta, o pulsa Mover y después el puesto de destino.'}</p>
+      <p className="text-xs leading-relaxed text-gray-400">{disabled ? 'Alineación cerrada para esta jornada.' : 'Arrastra una tarjeta al puesto o al banquillo para cambiar la alineación.'}</p>
       <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#c9a66b] p-3">
         <div className="pointer-events-none absolute inset-0 opacity-45">
           <div className="absolute left-1/2 top-1/2 h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/70" />
