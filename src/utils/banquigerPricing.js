@@ -1,5 +1,5 @@
 export const BANQUIGER_ELITE_COUNT = 3;
-export const BANQUIGER_MIN_PRICE = 0.4;
+export const BANQUIGER_MIN_PRICE = 0.3;
 
 export const applyBanquigerPricing = (players = []) => {
   const rankedIds = [...players]

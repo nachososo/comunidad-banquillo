@@ -1,3 +1,4 @@
+import { BANQUIGER_MIN_PRICE } from './banquigerPricing.js';
 import { getBanquigerPositions } from './banquigerPositions.js';
 import { defaultPowerCatalog, mergePowerCatalog } from './banquigerPowers.js';
 import { BANQUIGER_SEASON, buildBanquigerCalendarRounds, mergeBanquigerCalendarRounds } from './banquigerSchedule.js';
@@ -97,7 +98,7 @@ export const normalizeBanquigerPlayer = (player = {}) => ({
   avgMinutes: clampNumber(player.avgMinutes, 0, 0, 60),
   avgValuation: clampNumber(player.avgValuation, 0, -25, 60),
   lastValuation: clampNumber(player.lastValuation, player.avgValuation ?? 0, -25, 60),
-  price: clampNumber(player.price, 0.4, 0.4, 30),
+  price: clampNumber(player.price, BANQUIGER_MIN_PRICE, BANQUIGER_MIN_PRICE, 30),
   active: player.active !== false,
   manualPrice: player.manualPrice === true,
 });
@@ -128,7 +129,7 @@ export const getStoredBanquigerPlayers = (basePlayers = [], options = {}) => {
   storedById.forEach((player) => {
     if (!baseIds.has(player.id)) merged.push(currentEconomy ? player : {
       ...player,
-      price: Math.max(0.4, Number((player.price > 3
+      price: Math.max(BANQUIGER_MIN_PRICE, Number((player.price > 3
         ? player.price * 5 / 65
         : player.priceTier === 'elite' ? player.price : player.price - 0.1).toFixed(1))),
     });

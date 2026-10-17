@@ -32,7 +32,7 @@ import Footer from '@/components/Footer.jsx';
 import { useAuth } from '@/auth/AuthContext.jsx';
 import { allPlayers, matches, playerAdvancedStats, playerGameStats } from '@/data/data.js';
 import { getRebounds, getValuation, parseMadeAttempt } from '@/utils/statCalculations.js';
-import { applyBanquigerPricing } from '@/utils/banquigerPricing.js';
+import { applyBanquigerPricing, BANQUIGER_MIN_PRICE } from '@/utils/banquigerPricing.js';
 import { BANQUIGER_SEASON, mergeBanquigerCalendarRounds, resolveBanquigerSchedule } from '@/utils/banquigerSchedule.js';
 import { useBanquigerSchedule } from '@/hooks/useBanquigerSchedule.js';
 import {
@@ -212,7 +212,7 @@ export const buildPlayerMarket = (matchData = { matches, gameStats: playerGameSt
       const valuation = gameStat ? getBaseValuation(gameStat, advancedStat) : 0;
       const difference = valuation - player.avgValuation;
       const change = !gameStat ? -0.1 : difference >= 2 ? 0.1 : difference <= -2 ? -0.1 : 0;
-      const nextPrice = Math.max(0.4, Number((previousPrice + change).toFixed(1)));
+      const nextPrice = Math.max(BANQUIGER_MIN_PRICE, Number((previousPrice + change).toFixed(1)));
       previousPrices[id] = previousPrice;
       prices[id] = nextPrice;
       changes[id] = Number((nextPrice - previousPrice).toFixed(1));
