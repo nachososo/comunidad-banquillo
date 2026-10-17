@@ -1,3 +1,4 @@
+import { playerCaptureMinutes } from '@/utils/playerSeasonStats.js';
 import { normalizeStatsSeason, resolveStatsSeason } from '@/utils/statsCaptureCalendar.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -147,6 +148,7 @@ const StatsCapturePage = () => {
   const [rosterIds, setRosterIds] = useState([]);
   const [lineupIds, setLineupIds] = useState([]);
   const [onCourtIds, setOnCourtIds] = useState([]);
+  const [participatedIds, setParticipatedIds] = useState([]);
   const [periodIndex, setPeriodIndex] = useState(0);
   const [events, setEvents] = useState([]);
   const [pendingCourtPoint, setPendingCourtPoint] = useState(null);
@@ -261,6 +263,11 @@ const StatsCapturePage = () => {
     };
   }, [isAdmin, isAuthenticated, loading, user]);
 
+  useEffect(() => {
+    if (view !== 'live') return;
+    setParticipatedIds(current => [...new Set([...current, ...onCourtIds.map(String)])]);
+  }, [view, onCourtIds]);
+
   const clearMessages = () => {
     setNotice('');
     setErrorMessage('');
@@ -274,6 +281,7 @@ const StatsCapturePage = () => {
     setRosterIds([]);
     setLineupIds([]);
     setOnCourtIds([]);
+    setParticipatedIds([]);
     setPeriodIndex(0);
     setEvents([]);
     setSavedSessionId(null);
@@ -316,6 +324,7 @@ const StatsCapturePage = () => {
     setRosterIds([]);
     setLineupIds([]);
     setOnCourtIds([]);
+    setParticipatedIds([]);
     setRivalName('');
     setSelectedMatchId('');
     setView('rival');
@@ -495,6 +504,7 @@ const StatsCapturePage = () => {
           rosterIds,
           lineupIds,
           onCourtIds,
+          participatedIds,
           score: { own: ownScore, rival: rivalScore },
           source: 'web-stats-app',
         },
@@ -539,7 +549,7 @@ const StatsCapturePage = () => {
       .filter((row) => !row.player.isOpponent)
       .map((row) => ({
         player_id: Number(row.player.id),
-        minutes: null,
+        minutes: playerCaptureMinutes(row.player.id, participatedIds, events),
         points: row.pts,
         field_goals: `${row.t2Made + row.t3Made}-${row.t2Attempted + row.t3Attempted}`,
         three_pointers: `${row.t3Made}-${row.t3Attempted}`,

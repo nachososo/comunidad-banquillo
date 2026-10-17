@@ -1,3 +1,6 @@
+import { loadStatsCaptureCalendar } from '@/lib/statsCaptureRepository.js';
+import { mergePlayerMatchStats, getPlayerSeasonOptions, summarizePlayerSeason } from '@/utils/playerSeasonStats.js';
+import { normalizeStatsSeason } from '@/utils/statsCaptureCalendar.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
@@ -36,7 +39,8 @@ const PlayerDetailPage = () => {
   const [activeSection, setActiveSection] = useState(() =>
     typeof window !== 'undefined' && window.location.hash.includes('estadisticas') ? 'stats' : 'profile',
   );
-  const [selectedSeason, setSelectedSeason] = useState('2025-2026');
+  const [selectedSeason, setSelectedSeason] = useState(null);
+  const [playerCalendar, setPlayerCalendar] = useState(matches);
   const [shareNotice, setShareNotice] = useState('');
 
   useEffect(() => {
@@ -64,20 +68,31 @@ const PlayerDetailPage = () => {
   }, [numericId]);
 
   useEffect(() => {
-    let isMounted = true;
-    if (!isSupabaseConfigured || !numericId) return undefined;
-
-    supabase
-      .from('player_stats')
-      .select('match_id,player_id,minutes,points,field_goals,three_pointers,free_throws,offensive_rebounds,defensive_rebounds,fouls,steals,turnovers,blocks,assists,valuation,match:matches(id,team,season,phase,match_date,match_time,rival,venue,court,our_score,rival_score,status)')
-      .eq('player_id', numericId)
-      .then(({ data, error }) => {
-        if (isMounted && !error) setRemoteStatRows(data || []);
-      });
-
-    return () => {
-      isMounted = false;
+    let active = true;
+    let pending = false;
+    setRemoteStatRows(null);
+    setSelectedSeason(null);
+    const refresh = async () => {
+      if (pending || !isSupabaseConfigured || !numericId) return;
+      pending = true;
+      try {
+        const [calendar, stats] = await Promise.all([
+          loadStatsCaptureCalendar(matches).catch(() => null),
+          supabase.from('player_stats')
+            .select('match_id,player_id,minutes,points,field_goals,three_pointers,free_throws,offensive_rebounds,defensive_rebounds,fouls,steals,turnovers,blocks,assists,valuation,match:matches(id,team,season,phase,match_date,match_time,rival,venue,court,our_score,rival_score,status)')
+            .eq('player_id', numericId),
+        ]);
+        if (!active) return;
+        if (calendar) setPlayerCalendar(calendar);
+        if (!stats.error) setRemoteStatRows(stats.data || []);
+      } catch (error) {
+        console.warn('No se pudieron actualizar las estadísticas del jugador:', error.message);
+      } finally { pending = false; }
     };
+    void refresh();
+    const timer = window.setInterval(refresh, 60000);
+    window.addEventListener('focus', refresh);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', refresh); };
   }, [numericId]);
 
   const player = useMemo(() => {
@@ -183,16 +198,15 @@ const PlayerDetailPage = () => {
     blocks: stat.blocks || 0,
     assists: stat.assists || 0,
   }));
-  const hasRemoteStats = Array.isArray(remoteStatRows) && remoteStatRows.length > 0;
-  const activeGameStats = hasRemoteStats ? remoteGameStats : playerGameStats.filter((stat) => stat.playerId === player.id);
-  const activeAdvancedStats = hasRemoteStats ? remoteAdvancedStats : playerAdvancedStats.filter((stat) => stat.playerId === player.id);
+  const activeGameStats = mergePlayerMatchStats(playerGameStats.filter(stat => stat.playerId === player.id), remoteGameStats || []);
+  const activeAdvancedStats = mergePlayerMatchStats(playerAdvancedStats.filter(stat => stat.playerId === player.id), remoteAdvancedStats || []);
   const playerMatchIds = [
     ...new Set([
       ...activeGameStats.map((stat) => stat.matchId),
       ...activeAdvancedStats.map((stat) => stat.matchId),
     ]),
   ];
-  const seasonStats = playerMatchIds
+  const allSeasonStats = playerMatchIds
     .map((matchId) => {
       const [mergedStat] = mergeStatRows({
         gameStats: activeGameStats.filter((stat) => stat.matchId === matchId),
@@ -200,7 +214,7 @@ const PlayerDetailPage = () => {
         players: [player],
       });
 
-      const remoteMatch = hasRemoteStats ? remoteStatRows.find((stat) => stat.match_id === matchId)?.match : null;
+      const remoteMatch = remoteStatRows?.find(stat => String(stat.match_id) === String(matchId))?.match;
 
       return {
         ...mergedStat,
@@ -217,24 +231,11 @@ const PlayerDetailPage = () => {
         } : matches.find((match) => match.id === matchId),
       };
     })
-    .filter((stat) => stat.match?.season === selectedSeason)
     .sort((a, b) => new Date(a.match.date) - new Date(b.match.date));
-  const minutesToSeconds = (minutes) => {
-    const [minutePart, secondPart] = minutes.split(':').map(Number);
-    return minutePart * 60 + secondPart;
-  };
-  const secondsToMinutes = (seconds) => {
-    const safeSeconds = Math.round(seconds);
-    const minutePart = Math.floor(safeSeconds / 60);
-    const secondPart = String(safeSeconds % 60).padStart(2, '0');
-
-    return `${minutePart}:${secondPart}`;
-  };
-  const playedGames = seasonStats.filter((stat) => minutesToSeconds(stat.minutes) > 0);
-  const totalSeconds = playedGames.reduce((total, stat) => total + minutesToSeconds(stat.minutes), 0);
-  const totalPoints = playedGames.reduce((total, stat) => total + stat.points, 0);
-  const averageMinutes = playedGames.length > 0 ? secondsToMinutes(totalSeconds / playedGames.length) : '0:00';
-  const averagePoints = playedGames.length > 0 ? (totalPoints / playedGames.length).toFixed(1) : '0.0';
+  const seasonOptions = getPlayerSeasonOptions(playerCalendar, allSeasonStats, player.team);
+  const activeSeason = seasonOptions.includes(selectedSeason) ? selectedSeason : seasonOptions[0] || '';
+  const seasonStats = allSeasonStats.filter(stat => normalizeStatsSeason(stat.match?.season) === activeSeason);
+  const { playedGames, totalPoints, averageMinutes, averagePoints } = summarizePlayerSeason(seasonStats);
   const advancedTrackedGames = playedGames.filter((stat) => stat.advanced);
   const advancedTotals = buildAdvancedTotals(advancedTrackedGames);
   const formatAverage = (value, games = advancedTrackedGames.length) => {
@@ -472,13 +473,15 @@ const PlayerDetailPage = () => {
                       <label className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-gray-200">
                         <Calendar size={15} className="text-[hsl(43_65%_52%)]" />
                         <select
-                          value={selectedSeason}
+                          value={activeSeason}
                           onChange={(event) => setSelectedSeason(event.target.value)}
                           className="bg-transparent text-sm font-semibold text-gray-200 outline-none"
                         >
-                          <option className="bg-[#111]" value="2025-2026">
-                            Temporada 25/26
-                          </option>
+                          {seasonOptions.map(season => (
+                            <option key={season} className="bg-[#111]" value={season}>
+                              Temporada {season.replace('-', '/')}
+                            </option>
+                          ))}
                         </select>
                       </label>
                     </div>

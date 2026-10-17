@@ -1,3 +1,4 @@
+import { hasRecordedGameAppearance } from './playerSeasonStats.js';
 import { buildBanquigerLineup } from './banquigerPositions.js';
 import { getValuation, parseMadeAttempt } from './statCalculations.js';
 const pos = (n) => Math.max(0, Number(n) || 0);
@@ -54,7 +55,7 @@ export const buildPowerLineup = (ids, players, slots = null) => {
   return selected.map(player => ({ ...player, id: String(player.id), starter: starterIds.has(String(player.id)), inPosition: starterPlayers.find(p => String(p.id) === String(player.id))?.inPosition || false }));
 };
 export const powerPlayerRow = (game, stat, starter, multiplier = 2) => {
-  const played = Boolean(game && !['00:00', '0:00', '-', ''].includes(String(game.minutes ?? '')));
+  const played = hasRecordedGameAppearance(game);
   if (!played) return { f: 0, played: false, points: 0, assists: 0, rebounds: 0, threes: 0, defence: 0, misses: 0, bonus: 0, factor: starter ? multiplier : 1 };
   const points = Number(game.points) || 0, nonPoints = (getValuation(stat, points) ?? points) - points;
   const fg = parseMadeAttempt(stat?.fg), ft = parseMadeAttempt(stat?.ft);

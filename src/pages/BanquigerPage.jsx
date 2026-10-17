@@ -1,3 +1,4 @@
+import { hasRecordedGameAppearance } from '@/utils/playerSeasonStats.js';
 import { buildBanquigerLineup, reconcileBanquigerSlots, moveBanquigerPlayer, formatBanquigerPositions, getBanquigerPositions } from '@/utils/banquigerPositions.js';
 import BanquigerLineupBoard from '@/components/BanquigerLineupBoard.jsx';
 import BanquigerPowers from '@/components/BanquigerPowers.jsx';
@@ -269,7 +270,7 @@ const getMatchPlayerRows = (matchId, marketPlayers, matchData) => {
     const numericPlayerId = Number(player.id);
     const gameStat = gameByPlayer.get(numericPlayerId);
     const advancedStat = advancedByPlayer.get(numericPlayerId);
-    const played = Boolean(gameStat);
+    const played = hasRecordedGameAppearance(gameStat);
     const valuation = played ? getBaseValuation(gameStat, advancedStat) : 0;
 
     return {
