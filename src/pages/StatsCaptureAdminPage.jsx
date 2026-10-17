@@ -179,9 +179,9 @@ const StatsCaptureAdminPage = () => {
                 <CalendarDays size={23} className="mt-1 shrink-0 text-[hsl(43_65%_52%)]" />
                 <div>
                   <p className="text-xs font-bold uppercase text-[hsl(43_65%_52%)]">Configuración oficial</p>
-                  <h2 className="mt-1 text-xl font-black text-white">Temporada activa</h2>
+                  <h2 className="mt-1 text-xl font-black text-white">Temporada de respaldo</h2>
                   <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-400">
-                    Los anotadores solo podrán elegir partidos oficiales del calendario pertenecientes a esta temporada. Los amistosos seguirán disponibles siempre.
+                    La app detecta automáticamente la temporada más reciente del calendario de cada equipo. Esta selección se utiliza como respaldo si ese equipo no tiene partidos.
                   </p>
                   <p className="mt-3 text-xs font-black uppercase text-emerald-300">Activa ahora: {savedSeason.replace('-', '/')}</p>
                 </div>

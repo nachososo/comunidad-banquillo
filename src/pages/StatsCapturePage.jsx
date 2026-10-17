@@ -1,3 +1,4 @@
+import { normalizeStatsSeason, resolveStatsSeason } from '@/utils/statsCaptureCalendar.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { ArrowLeft, Lock, Save, Undo2, X } from 'lucide-react';
@@ -7,6 +8,7 @@ import {
   DEFAULT_STATS_SEASON,
   hasStatsCaptureAccess,
   loadStatsCaptureSettings,
+  loadStatsCaptureCalendar,
   publishOfficialStatsSession,
   saveStatsSession,
 } from '@/lib/statsCaptureRepository.js';
@@ -131,7 +133,10 @@ const StatsCapturePage = () => {
   const { loading, isAuthenticated, isAdmin, user } = useAuth();
   const [checkingAccess, setCheckingAccess] = useState(false);
   const [canUseOfficialMatches, setCanUseOfficialMatches] = useState(false);
-  const [activeSeason, setActiveSeason] = useState(DEFAULT_STATS_SEASON);
+  const [fallbackSeason, setFallbackSeason] = useState(DEFAULT_STATS_SEASON);
+  const [calendarMatches, setCalendarMatches] = useState(matches);
+  const [calendarError, setCalendarError] = useState('');
+  const [calendarLoading, setCalendarLoading] = useState(false);
   const [view, setView] = useState('home');
   const [matchKind, setMatchKind] = useState(null);
   const [team, setTeam] = useState('masculine');
@@ -161,20 +166,15 @@ const StatsCapturePage = () => {
   const players = team === 'feminine' ? femalePlayers : menRoster;
   const activeRosterByTeam = createdTeam === 'feminine' ? femalePlayers : menRoster;
   const editableTeamPlayers = createdTeamPlayers[createdTeam] || [];
+  const activeSeason = useMemo(() => resolveStatsSeason(calendarMatches, team, fallbackSeason), [calendarMatches, team, fallbackSeason]);
   const officialMatches = useMemo(
-    () => matches
-      .filter((match) => match.team === team && match.season === activeSeason)
+    () => calendarMatches
+      .filter((match) => match.team === team && normalizeStatsSeason(match.season) === activeSeason)
       .sort((a, b) => `${a.date} ${a.time || ''}`.localeCompare(`${b.date} ${b.time || ''}`)),
-    [activeSeason, team],
+    [activeSeason, team, calendarMatches],
   );
 
-  const officialRivals = useMemo(() => {
-    const seen = new Map();
-    officialMatches.forEach((match) => {
-      if (!seen.has(match.rival)) seen.set(match.rival, match);
-    });
-    return Array.from(seen.values());
-  }, [officialMatches]);
+  const officialRivals = officialMatches;
 
   const rosterPlayers = useMemo(
     () => players.filter((player) => rosterIds.includes(String(player.id))),
@@ -208,12 +208,37 @@ const StatsCapturePage = () => {
   useEffect(() => {
     let mounted = true;
     loadStatsCaptureSettings().then((settings) => {
-      if (mounted) setActiveSeason(settings.activeSeason);
+      if (mounted) setFallbackSeason(settings.activeSeason);
     });
     return () => {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    // Keep an existing selection and an ongoing capture attached to their season.
+    if (selectedMatchId || !['home', 'matchKind', 'team', 'rival'].includes(view)) return undefined;
+    let active = true;
+    let pending = false;
+    const refresh = async () => {
+      if (pending) return;
+      pending = true;
+      setCalendarLoading(true);
+      try {
+        const next = await loadStatsCaptureCalendar(matches);
+        if (active) { setCalendarMatches(next); setCalendarError(''); }
+      } catch (error) {
+        if (active) setCalendarError(error.message);
+      } finally {
+        pending = false;
+        if (active) setCalendarLoading(false);
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(refresh, 60000);
+    window.addEventListener('focus', refresh);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, [view, selectedMatchId]);
 
   useEffect(() => {
     if (loading) return;
@@ -324,8 +349,8 @@ const StatsCapturePage = () => {
   const chooseOfficialMatch = (matchId) => {
     setSelectedMatchId(matchId);
     const match = officialMatches.find((item) => String(item.id) === String(matchId));
+    setRivalName(match?.rival || '');
     if (match) {
-      setRivalName(match.rival);
       setVenue(match.location || 'Local');
     }
   };
@@ -819,10 +844,12 @@ const StatsCapturePage = () => {
           {matchKind === 'official' ? (
             <label className="grid gap-2 text-xs font-black uppercase text-[#b8b09a]">
               Nombre del rival
-              <select value={selectedMatchId} onChange={(event) => chooseOfficialMatch(event.target.value)} className="min-h-12 rounded-xl border border-white/20 bg-[#2a2a2a] px-3 text-sm font-black text-white outline-none">
-                <option value="">Elige rival del calendario · {activeSeason.replace('-', '/')}</option>
-                {officialRivals.map((match) => <option key={match.id} value={match.id}>{match.rival}</option>)}
+              <select disabled={calendarLoading} value={selectedMatchId} onChange={(event) => chooseOfficialMatch(event.target.value)} className="min-h-12 rounded-xl border border-white/20 bg-[#2a2a2a] px-3 text-sm font-black text-white outline-none">
+                <option value="">Elige partido del calendario · {activeSeason.replace('-', '/')}</option>
+                {officialRivals.map((match) => <option key={match.id} value={match.id}>{match.date?.split('-').reverse().join('/')} · {match.time || '--:--'} · {match.rival}</option>)}
               </select>
+              {calendarLoading && <span role="status" className="normal-case text-[#b8b09a]">Actualizando calendario…</span>}
+              {calendarError && <span role="alert" className="normal-case text-amber-200">{calendarError}</span>}
               {!officialRivals.length && <span className="normal-case text-amber-200">Todavía no hay partidos publicados para esta temporada y equipo.</span>}
             </label>
           ) : (
@@ -836,7 +863,7 @@ const StatsCapturePage = () => {
               <button key={item} type="button" onClick={() => setVenue(item)} className={`min-h-12 rounded-full border-2 border-[#ffd60a] text-xl font-black ${venue === item ? 'bg-[#ffd60a] text-black' : 'bg-transparent text-white'}`}>{item}</button>
             ))}
           </div>
-          <PrimaryButton className="mt-4 w-full" onClick={() => rivalName.trim() ? setView('roster') : setErrorMessage('Pon el nombre del rival antes de continuar.')}>Siguiente</PrimaryButton>
+          <PrimaryButton disabled={matchKind === 'official' && (calendarLoading || !selectedMatchId)} className="mt-4 w-full" onClick={() => rivalName.trim() ? setView('roster') : setErrorMessage('Pon el nombre del rival antes de continuar.')}>Siguiente</PrimaryButton>
           {errorMessage && <p className="mt-4 rounded-xl bg-red-500/10 p-3 text-sm font-bold text-red-100">{errorMessage}</p>}
         </section>
       </main>

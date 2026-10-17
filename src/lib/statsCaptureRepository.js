@@ -1,4 +1,14 @@
+import { mergeStatsCalendar } from '../utils/statsCaptureCalendar.js';
 import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient.js';
+
+export const loadStatsCaptureCalendar = async (fallbackMatches = []) => {
+  if (!isSupabaseConfigured) return fallbackMatches;
+  const { data, error } = await supabase.from('matches')
+    .select('id,team,season,match_date,match_time,rival,venue,court,status')
+    .order('match_date', { ascending: true });
+  if (error) throw new Error('No se ha podido actualizar el calendario. Inténtalo de nuevo.');
+  return mergeStatsCalendar(fallbackMatches, data || []);
+};
 
 export const DEFAULT_STATS_SEASON = '2025-2026';
 const STATS_SETTINGS_STORAGE_KEY = 'cdb:stats-capture-settings';
