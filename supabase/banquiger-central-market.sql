@@ -4,7 +4,7 @@ declare catalog jsonb; state jsonb; fixture record; p jsonb; updated_catalog jso
   player_key text; prior numeric; next_price numeric; reference numeric; val numeric; delta numeric; games int; played boolean;
   prices jsonb; previous_prices jsonb; changes jsonb; reference_values jsonb; valuations jsonb; attendance jsonb; dirty boolean:=false;
 begin
-  if auth.uid() is null or public.current_user_role()<>'admin' then raise exception 'Solo administración puede actualizar los precios.'; end if;
+  if auth.uid() is null or public.current_user_role() is distinct from 'admin' then raise exception 'Solo administración puede actualizar los precios.'; end if;
   select payload into catalog from public.game_data where key='banquiger:players' for update;
   select payload into state from public.game_data where key='banquiger:market-state' for update;
   if catalog is null or state is null then raise exception 'Falta el catálogo o el registro del mercado.'; end if;
@@ -73,7 +73,7 @@ CREATE OR REPLACE FUNCTION banquiger_private.finalize_round(p_round text, p_rank
 AS $function$
 declare v_state jsonb; v_round jsonb; v_next jsonb; v_entry jsonb; v_card jsonb; v_catalog jsonb; v_history jsonb; v_choices jsonb; v_power jsonb; v_rank int; v_n int; v_roll float; v_tier text; v_sign text; v_odds int[]; v_eligible jsonb; v_team public.banquiger_teams; v_snapshots jsonb; v_lineups jsonb;
 begin
-  if auth.uid() is null or public.current_user_role()<>'admin' then raise exception 'Solo administración puede publicar una jornada.'; end if;
+  if auth.uid() is null or public.current_user_role() is distinct from 'admin' then raise exception 'Solo administración puede publicar una jornada.'; end if;
   select payload into v_state from public.game_data where key='banquiger:league-v2' for update;
   if exists(select 1 from jsonb_array_elements(v_state->'results') r where r->>'round'=p_round) then perform banquiger_private.refresh_market_prices(); return v_state; end if;
   select r into v_round from public.game_data d,jsonb_array_elements(d.payload) r where d.key='banquiger:rounds' and r->>'name'=p_round;
