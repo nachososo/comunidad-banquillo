@@ -79,7 +79,7 @@ const PlayerDetailPage = () => {
         const [calendar, stats] = await Promise.all([
           loadStatsCaptureCalendar(matches).catch(() => null),
           supabase.from('player_stats')
-            .select('match_id,player_id,minutes,points,field_goals,three_pointers,free_throws,offensive_rebounds,defensive_rebounds,fouls,steals,turnovers,blocks,assists,valuation,match:matches(id,team,season,phase,match_date,match_time,rival,venue,court,our_score,rival_score,status)')
+            .select('match_id,player_id,minutes,points,field_goals,three_pointers,free_throws,offensive_rebounds,defensive_rebounds,fouls,steals,turnovers,blocks,assists,valuation,valuation_source,match:matches(id,team,season,phase,match_date,match_time,rival,venue,court,our_score,rival_score,status)')
             .eq('player_id', numericId),
         ]);
         if (!active) return;
@@ -187,16 +187,17 @@ const PlayerDetailPage = () => {
     matchId: stat.match_id,
     playerId: stat.player_id,
     points: stat.points || 0,
-    fg: stat.field_goals,
+    valuation: stat.valuation, valuationSource: stat.valuation_source,
+      fg: stat.field_goals,
     threePt: stat.three_pointers,
     ft: stat.free_throws,
-    oreb: stat.offensive_rebounds || 0,
-    dreb: stat.defensive_rebounds || 0,
-    fouls: stat.fouls || 0,
-    steals: stat.steals || 0,
-    turnovers: stat.turnovers || 0,
-    blocks: stat.blocks || 0,
-    assists: stat.assists || 0,
+    oreb: stat.offensive_rebounds ?? null,
+    dreb: stat.defensive_rebounds ?? null,
+    fouls: stat.fouls ?? null,
+    steals: stat.steals ?? null,
+    turnovers: stat.turnovers ?? null,
+    blocks: stat.blocks ?? null,
+    assists: stat.assists ?? null,
   }));
   const activeGameStats = mergePlayerMatchStats(playerGameStats.filter(stat => stat.playerId === player.id), remoteGameStats || []);
   const activeAdvancedStats = mergePlayerMatchStats(playerAdvancedStats.filter(stat => stat.playerId === player.id), remoteAdvancedStats || []);

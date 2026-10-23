@@ -130,10 +130,11 @@ export const loadBanquigerMatchData = async () => {
     }))],
     advancedStats: [...playerAdvancedStats, ...stats.map((stat) => ({
       matchId: stat.match_id, playerId: stat.player_id, points: stat.points || 0,
+      valuation: stat.valuation, valuationSource: stat.valuation_source,
       fg: stat.field_goals, threePt: stat.three_pointers, ft: stat.free_throws,
-      oreb: stat.offensive_rebounds || 0, dreb: stat.defensive_rebounds || 0,
-      assists: stat.assists || 0, steals: stat.steals || 0, blocks: stat.blocks || 0,
-      turnovers: stat.turnovers || 0, fouls: stat.fouls || 0,
+      oreb: stat.offensive_rebounds ?? null, dreb: stat.defensive_rebounds ?? null,
+      assists: stat.assists ?? null, steals: stat.steals ?? null, blocks: stat.blocks ?? null,
+      turnovers: stat.turnovers ?? null, fouls: stat.fouls ?? null,
     }))],
   };
 };

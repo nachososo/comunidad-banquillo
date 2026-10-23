@@ -24,13 +24,18 @@ export const formatStatPercentage = (value) => {
 };
 
 export const getRebounds = (stat) => {
-  if (!stat) return null;
+  if (!stat || (stat.oreb == null && stat.dreb == null)) return null;
 
   return (stat.oreb || 0) + (stat.dreb || 0);
 };
 
 export const getValuation = (stat, points) => {
   if (!stat) return null;
+  // Only explicitly sourced federation imports override the usual game formula.
+  if (stat.valuationSource === 'federation' && stat.valuation != null &&
+      String(stat.valuation).trim() !== '' && Number.isFinite(Number(stat.valuation))) {
+    return Number(stat.valuation);
+  }
 
   const fg = parseMadeAttempt(stat.fg);
   const ft = parseMadeAttempt(stat.ft);
