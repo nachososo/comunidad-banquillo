@@ -279,12 +279,12 @@ const rules = [
   {
     icon: UsersRound,
     title: 'Plantilla de 5 a 7',
-    text: 'Cinco titulares y hasta dos suplentes opcionales, sin restricciones de posición. Titulares en su posición principal o secundaria: ×2 excepto puntos anotados. Fuera de posición: ×1.',
+    text: 'Cinco titulares y hasta dos suplentes opcionales, sin restricciones de posición. Titulares en su posición principal o secundaria: ×2 solo en estadísticas positivas, salvo puntos anotados. Fuera de posición: ×1.',
   },
   {
     icon: BarChart3,
     title: 'Puntuación semanal',
-    text: 'Los titulares en una de sus posiciones duplican las estadísticas que puntúan, incluidas penalizaciones, excepto los puntos anotados. Fuera de posición y suplentes: ×1.',
+    text: 'Los titulares en una de sus posiciones duplican solo rebotes, asistencias, robos y tapones. Puntos anotados y penalizaciones siempre ×1. Fuera de posición y suplentes: todo ×1.',
   },
   {
     icon: ArrowRightLeft,
@@ -796,7 +796,7 @@ const BanquigerPage = () => {
             <p className="text-xs font-bold uppercase text-[hsl(43_65%_52%)]">{teamName}</p>
             <h2 className="text-xl font-black text-white">Mi plantilla</h2>
             <p className="mt-1 text-xs text-gray-500">
-              Puedes jugar con 5, 6 o 7 jugadores; los suplentes son opcionales. Cualquier jugador puede ocupar cualquier puesto. ×2 en su posición principal o secundaria; ×1 fuera de ellas y en el banquillo. Puntos anotados siempre ×1.
+              Puedes jugar con 5, 6 o 7 jugadores; los suplentes son opcionales. Cualquier jugador puede ocupar cualquier puesto. ×2 solo en rebotes, asistencias, robos y tapones si juega en su posición principal o secundaria. Fuera de posición y banquillo: ×1. Puntos anotados y penalizaciones siempre ×1.
             </p>
           </div>
           <div className="flex gap-2">

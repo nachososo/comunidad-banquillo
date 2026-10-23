@@ -9,7 +9,7 @@ const advancedStats = players.map(p => ({ playerId:p.id, matchId:1, fg:'4-8', ft
 const score = uses => scorePowerRound({ teams, players, gameStats, advancedStats, matchId:1, uses });
 const baseline = score([]);
 const targetsFor = card => Array.from({length:card.rivalCount},(_,i) => ({teamId:card.type==='positive'?'a':teams[i+1].id,playerIds:card.count===7?[]:players.slice(card.bench?5:0,(card.bench?5:0)+card.count).map(p=>p.id)}));
-const expected = [4,0,6,3,2.2,4,3,3.2,5.5,8,6,6.6,5.5,6.6,6,4.4,11,13.2,9,16,11,13.2,8.8,6,22,24,24,0,13.2,24,13.2,22];
+const expected = [4,0,6,3,2.8,4,3,3.2,7,10,3,8.4,7,8.4,6,5.6,14,16,9,16,14,16,11.2,12,24,24,24,0,16.8,24,16.8,24];
 test('all 32 effects use the original fantasy score and their shared caps', () => {
   assert.equal(defaultPowerCatalog.length,32);
   for (const [i,card] of defaultPowerCatalog.entries()) {
@@ -34,7 +34,7 @@ test('recovery powers require minutes and cap recovery of negative scores', () =
 test('combined attacks cannot exceed 60% per player or 24 per team and do not affect other holders', () => {
   const uses=Array.from({length:3},()=>({powerId:'l5',targets:[{teamId:'b',playerIds:['1']}]}));
   const result=score(uses);
-  assert.ok(Math.abs(baseline.find(t=>t.id==='b').points-result.find(t=>t.id==='b').points-13.2)<1e-9);
+  assert.ok(Math.abs(baseline.find(t=>t.id==='b').points-result.find(t=>t.id==='b').points-16.8)<1e-9);
   assert.equal(result.find(t=>t.id==='a').points,baseline.find(t=>t.id==='a').points);
   const whole=score(Array.from({length:3},()=>({powerId:'l6',targets:[{teamId:'b',playerIds:[]}]})));
   assert.equal(baseline.find(t=>t.id==='b').points-whole.find(t=>t.id==='b').points,24);
@@ -42,7 +42,7 @@ test('combined attacks cannot exceed 60% per player or 24 per team and do not af
 });
 test('bonuses never multiply other powers and attacks never benefit from their bonuses', () => {
   const result=score([{powerId:'l1',targets:[{teamId:'a',playerIds:['1']}]},{powerId:'l5',targets:[{teamId:'a',playerIds:['1']}]}]);
-  assert.equal(result.find(t=>t.id==='a').powerDelta,8.8);
+  assert.ok(Math.abs(result.find(t=>t.id==='a').powerDelta-7.2)<1e-9);
 });
 test('no-show players score zero and first selected player per position is starter', () => {
   assert.equal(powerPlayerRow({minutes:'00:00',points:10},advancedStats[0],true).f,0);
@@ -67,8 +67,8 @@ test('manual off-position starters score x1, retain starter eligibility, and pow
   const gameStats=players.map(p=>({matchId:1,playerId:p.id,minutes:'20:00',points:10}));
   const advancedStats=players.map(p=>({matchId:1,playerId:p.id,assists:2,oreb:1,dreb:1,steals:1,blocks:1,turnovers:1,fg:'4-6',ft:'2-3'}));
   const base=scorePowerRound({teams,players,gameStats,advancedStats,matchId:1});
-  // Non-point valuation = 2: three compatible starters x2, two off-position starters + two reserves x1.
-  assert.equal(base[0].basePoints,90);
+  // Each player: 10 points + 6 positive stats - 4 penalties = 12. Only the three compatible starters receive another +6.
+  assert.equal(base[0].basePoints,102);
   const own=(id)=>[{powerId:id,targets:[{teamId:'own',playerIds:['4']}]}];
   assert.equal(scorePowerRound({teams,players,gameStats,advancedStats,matchId:1,uses:own('e8')})[0].powerDelta,0);
   assert.equal(scorePowerRound({teams,players,gameStats,advancedStats,matchId:1,uses:own('r3')})[0].powerDelta,1.5);

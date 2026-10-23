@@ -12,8 +12,8 @@ const definitions = [
   ['c7', 'Cortar el pase', 'common', '-', 6, 'Un jugador rival pierde 1 punto por asistencia; máximo 6.', 'assists', 1, false, (r) => r.assists],
   ['c8', 'Banquillo frío', 'common', '-', 6, 'Un suplente rival pierde el 20% de su puntuación positiva; máximo 6.', 'f', 1, true, (r) => r.f * 0.2],
   ['r1', 'Turbo', 'rare', '+', 10, 'Un jugador propio suma el 25% de su puntuación positiva; máximo +10.', 'f', 1, false, (r) => r.f * 0.25],
-  ['r2', 'Sexto hombre', 'rare', '+', 10, 'Un suplente que juegue recibe +2 y el bonus positivo de titular sin puntos; máximo +10.', 'f', 1, true, (r) => r.played ? 2 + pos(r.f - r.points) : 0],
-  ['r3', 'Segunda oportunidad', 'rare', '+', 10, 'Devuelve la mitad de las penalizaciones por tiros fallados de un jugador propio; máximo +10.', 'misses', 1, false, (r) => r.misses * (r.factor / 2)],
+  ['r2', 'Sexto hombre', 'rare', '+', 10, 'Un suplente que juegue recibe +2 y el bonus positivo de titular sin puntos; máximo +10.', 'f', 1, true, (r) => r.played ? 2 + r.positiveStats : 0],
+  ['r3', 'Segunda oportunidad', 'rare', '+', 10, 'Devuelve la mitad de las penalizaciones por tiros fallados de un jugador propio; máximo +10.', 'misses', 1, false, (r) => r.misses / 2],
   ['r4', 'Pareja conectada', 'rare', '+', 10, 'Dos jugadores propios suman el 15% de sus puntuaciones positivas; máximo +10 conjunto.', 'f', 2, false, (r) => r.f * 0.15],
   ['r5', 'Defensa pegajosa', 'rare', '-', 10, 'Un jugador rival pierde el 25% de su puntuación positiva; máximo 10.', 'f', 1, false, (r) => r.f * 0.25],
   ['r6', 'Dos contra uno', 'rare', '-', 10, 'Dos jugadores de un rival pierden el 15% de sus puntuaciones positivas; máximo 10 conjunto.', 'f', 2, false, (r) => r.f * 0.15],
@@ -56,16 +56,21 @@ export const buildPowerLineup = (ids, players, slots = null) => {
 };
 export const powerPlayerRow = (game, stat, starter, multiplier = 2) => {
   const played = hasRecordedGameAppearance(game);
-  if (!played) return { f: 0, played: false, points: 0, assists: 0, rebounds: 0, threes: 0, defence: 0, misses: 0, bonus: 0, factor: starter ? multiplier : 1 };
+  if (!played) return { f: 0, played: false, points: 0, assists: 0, rebounds: 0, threes: 0, defence: 0, misses: 0, bonus: 0, positiveStats: 0, factor: starter ? multiplier : 1 };
   // Exceptional incomplete federation rounds use the official value directly.
   const effectiveMultiplier = stat?.valuationSource === 'federation-direct' ? 1 : multiplier;
-  const points = Number(game.points) || 0, nonPoints = (getValuation(stat, points) ?? points) - points;
+  const points = Number(game.points) || 0;
+  const factor = starter ? effectiveMultiplier : 1;
+  const positiveStats = pos(stat?.oreb) + pos(stat?.dreb) + pos(stat?.assists) + pos(stat?.steals) + pos(stat?.blocks);
+  const bonus = positiveStats * (factor - 1);
   const fg = parseMadeAttempt(stat?.fg), ft = parseMadeAttempt(stat?.ft);
-  return { factor: starter ? effectiveMultiplier : 1, f: points + nonPoints * (starter ? effectiveMultiplier : 1), played, points,
-    assists: stat?.assists || 0, rebounds: (stat?.oreb || 0) + (stat?.dreb || 0),
-    threes: parseMadeAttempt(stat?.threePt).made, defence: (stat?.steals || 0) + (stat?.blocks || 0),
+  // The base already subtracts each penalty once. Only positive non-point
+  // contributions receive the starter bonus; never multiply a net valuation.
+  return { factor, f: (getValuation(stat, points) ?? points) + bonus, played, points, positiveStats,
+    assists: pos(stat?.assists), rebounds: pos(stat?.oreb) + pos(stat?.dreb),
+    threes: parseMadeAttempt(stat?.threePt).made, defence: pos(stat?.steals) + pos(stat?.blocks),
     misses: Math.max(0, fg.attempted - fg.made) + Math.max(0, ft.attempted - ft.made),
-    bonus: starter && effectiveMultiplier > 1 ? nonPoints * (effectiveMultiplier - 1) : 0,
+    bonus,
   };
 };
 // Original scores are immutable: bonuses never multiply previous bonuses or attacks.

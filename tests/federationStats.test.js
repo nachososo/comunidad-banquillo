@@ -12,10 +12,10 @@ test('explicit federation valuation preserves zero and negatives, with ordinary 
   assert.equal(getRebounds({ oreb: null, dreb: null }), null);
 });
 
-test('federation base doubles only non-point value for an eligible starter', () => {
+test('federation valuation is never reduced by doubling its negative components', () => {
   const game = { minutes: '43:15', points: 18 };
   const stat = { valuationSource: 'federation', valuation: 10 };
-  assert.equal(powerPlayerRow(game, stat, true).f, 2);
+  assert.equal(powerPlayerRow(game, stat, true).f, 10);
   assert.equal(powerPlayerRow(game, stat, false).f, 10);
   assert.equal(powerPlayerRow({ minutes: '00:00', points: 0 }, stat, true).f, 0);
 });
@@ -35,5 +35,5 @@ test('direct federation exception bypasses x2 only for explicitly marked imports
   assert.equal(powerPlayerRow(game, direct, false).f, 10);
   assert.equal(powerPlayerRow(game, direct, true).factor, 1);
   assert.equal(powerPlayerRow(game, direct, true).bonus, 0);
-  assert.equal(powerPlayerRow(game, { ft: '3-9', fg: '7-7' }, true).f, 6);
+  assert.equal(powerPlayerRow(game, { ft: '3-9', fg: '7-7' }, true).f, 12);
 });
