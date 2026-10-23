@@ -120,8 +120,8 @@ export const getStoredBanquigerPlayers = (basePlayers = [], options = {}) => {
       ...basePlayer,
       active: true,
       ...storedPlayer,
-      price: currentEconomy && storedPlayer?.manualPrice ? storedPlayer.price : basePlayer.price,
-      priceTier: currentEconomy && storedPlayer?.manualPrice ? storedPlayer.priceTier : basePlayer.priceTier,
+      price: currentEconomy && storedPlayer ? storedPlayer.price : basePlayer.price,
+      priceTier: currentEconomy && storedPlayer ? storedPlayer.priceTier : basePlayer.priceTier,
     });
   });
 

@@ -139,7 +139,7 @@ const BanquigerAdminPage = () => {
       setSelectedPowerId(nextPowers[0]?.id || '');
       setPowerForm(nextPowers[0] || emptyPower);
       setRemoteTeams(teams);
-      void Promise.all([
+      if (!bundle.hasRemoteData) void Promise.all([
         saveGameDocument(GAME_DATA_KEYS.banquigerSettings, 'banquiger', nextSettings),
         saveGameDocument(GAME_DATA_KEYS.banquigerPlayers, 'banquiger', nextPlayers),
         saveGameDocument(GAME_DATA_KEYS.banquigerRounds, 'banquiger', nextRounds),
@@ -329,6 +329,11 @@ const BanquigerAdminPage = () => {
         uses: ledger.data.uses.filter(use => use.round === target.name),
       });
       await finalizeBanquigerRound(target.name, ranking);
+      const updated = await loadBanquigerBundle({
+        settings, players, rounds, powers, powerState: {}, marketState: getStoredBanquigerMarketState(),
+      });
+      setPlayers(saveStoredBanquigerPlayers(updated.players));
+      if (updated.marketState) saveStoredBanquigerMarketState(updated.marketState);
       setRounds(saveStoredBanquigerRounds(rounds.map(round => round.id === roundId ? { ...round, scored: true, status: 'closed' } : round)));
       setRemoteTeams(await loadBanquigerTeams());
       setNotice('Jornada publicada y cartas repartidas a los tres últimos para el siguiente partido.');

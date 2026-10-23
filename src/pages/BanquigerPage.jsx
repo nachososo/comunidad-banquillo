@@ -32,7 +32,7 @@ import Footer from '@/components/Footer.jsx';
 import { useAuth } from '@/auth/AuthContext.jsx';
 import { allPlayers, matches, playerAdvancedStats, playerGameStats } from '@/data/data.js';
 import { getRebounds, getValuation, parseMadeAttempt } from '@/utils/statCalculations.js';
-import { applyBanquigerPricing, BANQUIGER_MIN_PRICE } from '@/utils/banquigerPricing.js';
+import { applyBanquigerPricing } from '@/utils/banquigerPricing.js';
 import { BANQUIGER_SEASON, mergeBanquigerCalendarRounds, resolveBanquigerSchedule } from '@/utils/banquigerSchedule.js';
 import { useBanquigerSchedule } from '@/hooks/useBanquigerSchedule.js';
 import {
@@ -154,7 +154,6 @@ const buildLineup = buildBanquigerLineup;
 export const buildPlayerMarket = (matchData = { matches, gameStats: playerGameStats, advancedStats: playerAdvancedStats }) => {
   const { matches: calendarMatches, gameStats, advancedStats } = matchData;
   const advancedByGame = new Map(advancedStats.map((stat) => [`${stat.matchId}-${stat.playerId}`, stat]));
-  const gameStatsByGame = new Map(gameStats.map((stat) => [`${stat.matchId}-${stat.playerId}`, stat]));
   const publishedMatches = calendarMatches
     .filter((match) => match.team === 'masculine' && match.season === BANQUIGER_SEASON && match.result && gameStats.some((stat) => stat.matchId === match.id))
     .sort((first, second) => String(first.date).localeCompare(String(second.date)));
@@ -180,54 +179,9 @@ export const buildPlayerMarket = (matchData = { matches, gameStats: playerGameSt
   });
 
   const pricedPlayers = applyBanquigerPricing(players);
-  let marketState = getStoredBanquigerMarketState();
+  const marketState = getStoredBanquigerMarketState() || { prices: {}, previousPrices: {}, changes: {}, lastProcessedMatchId: null };
 
-  const processMatch = (state, match) => {
-    const prices = { ...state.prices };
-    const previousPrices = {};
-    const changes = {};
-    pricedPlayers.forEach((player) => {
-      const id = String(player.id);
-      const previousPrice = Number(prices[id] ?? player.price);
-      const gameStat = gameStatsByGame.get(`${match.id}-${player.id}`);
-      const advancedStat = advancedByGame.get(`${match.id}-${player.id}`);
-      const valuation = gameStat ? getBaseValuation(gameStat, advancedStat) : 0;
-      const difference = valuation - player.avgValuation;
-      const change = !gameStat ? -0.1 : difference >= 2 ? 0.1 : difference <= -2 ? -0.1 : 0;
-      const nextPrice = Math.max(BANQUIGER_MIN_PRICE, Number((previousPrice + change).toFixed(1)));
-      previousPrices[id] = previousPrice;
-      prices[id] = nextPrice;
-      changes[id] = Number((nextPrice - previousPrice).toFixed(1));
-    });
-    return {
-      lastProcessedMatchId: match.id,
-      prices,
-      previousPrices,
-      changes,
-      history: [...state.history, { matchId: match.id, date: match.date, prices, changes }].slice(-40),
-    };
-  };
-
-  if (!marketState) {
-    marketState = { lastProcessedMatchId: null, prices: {}, previousPrices: {}, changes: {}, history: [] };
-    const latestMatch = publishedMatches.at(-1);
-    if (latestMatch) marketState = processMatch(marketState, latestMatch);
-    saveStoredBanquigerMarketState(marketState);
-  } else {
-    pricedPlayers.forEach((player) => {
-      const id = String(player.id);
-      if (marketState.prices[id] === undefined) marketState.prices[id] = player.price;
-    });
-    const lastIndex = publishedMatches.findIndex((match) => match.id === marketState.lastProcessedMatchId);
-    const unprocessedMatches = lastIndex >= 0
-      ? publishedMatches.slice(lastIndex + 1)
-      : publishedMatches.slice(-1);
-    unprocessedMatches.forEach((match) => {
-      marketState = processMatch(marketState, match);
-    });
-    if (unprocessedMatches.length) saveStoredBanquigerMarketState(marketState);
-  }
-
+  // The shared server ledger is authoritative. Rendering never changes prices.
   return pricedPlayers.map((player) => {
     const id = String(player.id);
     return {
@@ -521,14 +475,18 @@ const BanquigerPage = () => {
   useEffect(() => {
     let active = true;
     const refresh = async () => {
-      const [data, settingsDoc, roundsDoc, leagueDoc, teams] = await Promise.all([
+      const [data, settingsDoc, roundsDoc, leagueDoc, teams, playersDoc, marketDoc] = await Promise.all([
         loadBanquigerMatchData(),
         loadGameDocument(GAME_DATA_KEYS.banquigerSettings, getStoredBanquigerSettings()),
         loadGameDocument(GAME_DATA_KEYS.banquigerRounds, getStoredBanquigerRounds()),
         loadBanquigerLeague(),
         loadBanquigerTeams(),
+        loadGameDocument(GAME_DATA_KEYS.banquigerPlayers, getStoredBanquigerPlayers(buildPlayerMarket(), { includeInactive: true })),
+        loadGameDocument(GAME_DATA_KEYS.banquigerMarketState, getStoredBanquigerMarketState()),
       ]);
       if (!active) return;
+      if (playersDoc.remote) saveStoredBanquigerPlayers(playersDoc.data);
+      if (marketDoc.remote) saveStoredBanquigerMarketState(marketDoc.data);
       setPowerState(leagueDoc.data);
       setRegisteredTeams(teams);
       setMatchData(data);
