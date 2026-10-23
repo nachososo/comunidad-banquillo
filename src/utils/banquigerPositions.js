@@ -79,3 +79,8 @@ export function moveBanquigerPlayer(slots, from, to) {
 }
 
 export const canAddBanquigerPlayer = players => players.length < 7;
+
+// Five starters are required; the two reserve places are optional.
+export const isBanquigerRosterSizeValid = (ids, maximum = 7) =>
+  Array.isArray(ids) && ids.length >= 5 && ids.length <= Math.min(7, maximum) &&
+  new Set(ids.map(String)).size === ids.length;

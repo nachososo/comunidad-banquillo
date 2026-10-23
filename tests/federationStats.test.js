@@ -27,3 +27,13 @@ test('explicit slots keep out-of-position players at x1', () => {
     advancedStats: [{ matchId: 22, playerId: 'p', valuationSource: 'federation', valuation: 10 }], matchId: 22 });
   assert.equal(ranking[0].points, 10);
 });
+
+test('direct federation exception bypasses x2 only for explicitly marked imports', () => {
+  const game = { minutes: '43:15', points: 18 };
+  const direct = { valuationSource: 'federation-direct', valuation: 10 };
+  assert.equal(powerPlayerRow(game, direct, true).f, 10);
+  assert.equal(powerPlayerRow(game, direct, false).f, 10);
+  assert.equal(powerPlayerRow(game, direct, true).factor, 1);
+  assert.equal(powerPlayerRow(game, direct, true).bonus, 0);
+  assert.equal(powerPlayerRow(game, { ft: '3-9', fg: '7-7' }, true).f, 6);
+});

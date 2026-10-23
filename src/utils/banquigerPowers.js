@@ -57,13 +57,15 @@ export const buildPowerLineup = (ids, players, slots = null) => {
 export const powerPlayerRow = (game, stat, starter, multiplier = 2) => {
   const played = hasRecordedGameAppearance(game);
   if (!played) return { f: 0, played: false, points: 0, assists: 0, rebounds: 0, threes: 0, defence: 0, misses: 0, bonus: 0, factor: starter ? multiplier : 1 };
+  // Exceptional incomplete federation rounds use the official value directly.
+  const effectiveMultiplier = stat?.valuationSource === 'federation-direct' ? 1 : multiplier;
   const points = Number(game.points) || 0, nonPoints = (getValuation(stat, points) ?? points) - points;
   const fg = parseMadeAttempt(stat?.fg), ft = parseMadeAttempt(stat?.ft);
-  return { factor: starter ? multiplier : 1, f: points + nonPoints * (starter ? multiplier : 1), played, points,
+  return { factor: starter ? effectiveMultiplier : 1, f: points + nonPoints * (starter ? effectiveMultiplier : 1), played, points,
     assists: stat?.assists || 0, rebounds: (stat?.oreb || 0) + (stat?.dreb || 0),
     threes: parseMadeAttempt(stat?.threePt).made, defence: (stat?.steals || 0) + (stat?.blocks || 0),
     misses: Math.max(0, fg.attempted - fg.made) + Math.max(0, ft.attempted - ft.made),
-    bonus: starter ? nonPoints * (multiplier - 1) : 0,
+    bonus: starter && effectiveMultiplier > 1 ? nonPoints * (effectiveMultiplier - 1) : 0,
   };
 };
 // Original scores are immutable: bonuses never multiply previous bonuses or attacks.

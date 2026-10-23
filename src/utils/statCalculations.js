@@ -32,7 +32,7 @@ export const getRebounds = (stat) => {
 export const getValuation = (stat, points) => {
   if (!stat) return null;
   // Only explicitly sourced federation imports override the usual game formula.
-  if (stat.valuationSource === 'federation' && stat.valuation != null &&
+  if (['federation', 'federation-direct'].includes(stat.valuationSource) && stat.valuation != null &&
       String(stat.valuation).trim() !== '' && Number.isFinite(Number(stat.valuation))) {
     return Number(stat.valuation);
   }

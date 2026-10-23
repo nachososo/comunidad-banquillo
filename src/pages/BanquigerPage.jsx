@@ -1,8 +1,8 @@
 import { hasRecordedGameAppearance } from '@/utils/playerSeasonStats.js';
-import { buildBanquigerLineup, reconcileBanquigerSlots, moveBanquigerPlayer, formatBanquigerPositions, getBanquigerPositions } from '@/utils/banquigerPositions.js';
+import { buildBanquigerLineup, reconcileBanquigerSlots, moveBanquigerPlayer, formatBanquigerPositions, getBanquigerPositions, isBanquigerRosterSizeValid } from '@/utils/banquigerPositions.js';
 import BanquigerLineupBoard from '@/components/BanquigerLineupBoard.jsx';
 import BanquigerPowers from '@/components/BanquigerPowers.jsx';
-import { buildPowerLineup, scorePowerRound } from '@/utils/banquigerPowers.js';
+import { buildPowerLineup, scorePowerRound, powerPlayerRow } from '@/utils/banquigerPowers.js';
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
@@ -146,26 +146,8 @@ const getBaseValuation = (gameStat, advancedStat) => {
   return getValuation(advancedStat, gameStat?.points ?? advancedStat?.points ?? 0) ?? gameStat?.points ?? 0;
 };
 
-const getFantasyValuation = (gameStat, advancedStat, starter = false, starterMultiplier = 2) => {
-  const points = gameStat?.points ?? advancedStat?.points ?? 0;
-
-  if (!advancedStat) return points;
-
-  const fg = parseMadeAttempt(advancedStat.fg);
-  const ft = parseMadeAttempt(advancedStat.ft);
-  const missedFieldGoals = fg.attempted - fg.made;
-  const missedFreeThrows = ft.attempted - ft.made;
-  const nonPointValuation =
-    getRebounds(advancedStat) +
-    (advancedStat.assists || 0) +
-    (advancedStat.steals || 0) +
-    (advancedStat.blocks || 0) -
-    missedFieldGoals -
-    missedFreeThrows -
-    (advancedStat.turnovers || 0);
-
-  return points + nonPointValuation * (starter ? starterMultiplier : 1);
-};
+const getFantasyValuation = (gameStat, advancedStat, starter = false, starterMultiplier = 2) =>
+  powerPlayerRow(gameStat, advancedStat, starter, starterMultiplier).f;
 
 const buildLineup = buildBanquigerLineup;
 
@@ -296,8 +278,8 @@ const rules = [
   },
   {
     icon: UsersRound,
-    title: 'Equipo de 7',
-    text: 'Cinco titulares y dos suplentes, sin restricciones de posición. Titulares en su posición principal o secundaria: ×2 excepto puntos anotados. Fuera de posición: ×1.',
+    title: 'Plantilla de 5 a 7',
+    text: 'Cinco titulares y hasta dos suplentes opcionales, sin restricciones de posición. Titulares en su posición principal o secundaria: ×2 excepto puntos anotados. Fuera de posición: ×1.',
   },
   {
     icon: BarChart3,
@@ -608,7 +590,7 @@ const BanquigerPage = () => {
     });
   const missingStarterPositions = STARTER_POSITIONS.filter((position) => !startersByPosition[position]);
   const startersComplete = missingStarterPositions.length === 0;
-  const canSave = settings.marketStatus === 'open' && selectedIds.length === teamSize && startersComplete && remainingBudget >= 0;
+  const canSave = settings.marketStatus === 'open' && isBanquigerRosterSizeValid(selectedIds, teamSize) && startersComplete && remainingBudget >= 0;
   const leaderboard = registeredTeams.map(team => {
     const current = team.user_id === user?.id;
     const preview = scoredTeams.find(entry => entry.id === String(team.id));
@@ -814,7 +796,7 @@ const BanquigerPage = () => {
             <p className="text-xs font-bold uppercase text-[hsl(43_65%_52%)]">{teamName}</p>
             <h2 className="text-xl font-black text-white">Mi plantilla</h2>
             <p className="mt-1 text-xs text-gray-500">
-              Cualquier jugador puede ocupar cualquier puesto. ×2 en su posición principal o secundaria; ×1 fuera de ellas y en el banquillo. Puntos anotados siempre ×1.
+              Puedes jugar con 5, 6 o 7 jugadores; los suplentes son opcionales. Cualquier jugador puede ocupar cualquier puesto. ×2 en su posición principal o secundaria; ×1 fuera de ellas y en el banquillo. Puntos anotados siempre ×1.
             </p>
           </div>
           <div className="flex gap-2">
@@ -1059,7 +1041,7 @@ const BanquigerPage = () => {
                   <span className="text-sm font-bold uppercase text-[hsl(43_65%_52%)]">Fantasy banquiller</span>
                   <h1 className="mt-2 text-white">Banquiger</h1>
                   <p className="mt-4 max-w-2xl text-base leading-relaxed text-gray-300">
-                    Crea tu equipo, ficha 7 jugadores y compite cada jornada con la valoración de la plantilla.
+                    Crea tu equipo, ficha de 5 a 7 jugadores y compite cada jornada con la valoración de la plantilla.
                   </p>
                   <div className="mt-5 rounded-xl border border-[hsl(43_65%_52%_/_0.28)] bg-[hsl(43_65%_52%_/_0.08)] p-4">
                     <p className="text-sm font-black uppercase text-[hsl(43_65%_62%)]">

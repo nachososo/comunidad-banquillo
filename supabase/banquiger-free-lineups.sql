@@ -68,7 +68,7 @@ begin
     (select count(*) from jsonb_array_elements_text(new.lineup_slots) x where x is not null)<>jsonb_array_length(new.selected_ids) or
     (select count(distinct x) from jsonb_array_elements_text(new.lineup_slots) x where x is not null)<>jsonb_array_length(new.selected_ids) or
     exists(select 1 from jsonb_array_elements_text(new.lineup_slots) x where x is not null and not new.selected_ids ? x) then raise exception 'Cada jugador debe aparecer una sola vez en su plantilla.'; end if;
-  if jsonb_array_length(new.selected_ids)=7 and (select count(*) from jsonb_object_keys(banquiger_private.lineup(new.selected_ids,v_catalog,new.lineup_slots)))<>5 then raise exception 'Completa las cinco posiciones titulares.'; end if;
+  if jsonb_array_length(new.selected_ids)>=5 and (select count(*) from jsonb_object_keys(banquiger_private.lineup(new.selected_ids,v_catalog,new.lineup_slots)))<>5 then raise exception 'Completa las cinco posiciones titulares.'; end if;
   select coalesce((select id::text from public.banquiger_teams where user_id=new.user_id and season=new.season),new.id::text) into v_team_id;
   select payload into v_state from public.game_data where key='banquiger:league-v2' for update;
   v_state := jsonb_set(v_state,array['snapshots',v_round->>'name'],coalesce(v_state->'snapshots'->(v_round->>'name'),'{}'::jsonb));
@@ -140,7 +140,7 @@ begin
   if jsonb_typeof(p_ranking)<>'array' then raise exception 'Clasificación no válida.'; end if;
   v_n:=jsonb_array_length(p_ranking);
   if (select count(distinct x->>'id') from jsonb_array_elements(p_ranking) x)<>v_n then raise exception 'Hay equipos duplicados.'; end if;
-  if v_n<>(select count(*) from public.banquiger_teams t where season='2026-2027' and created_at<(v_round->>'deadline')::timestamptz and jsonb_array_length(coalesce(v_state->'snapshots'->p_round->(t.id::text),t.selected_ids))=7) then raise exception 'Actualiza la lista de equipos antes de publicar.'; end if;
+  if v_n<>(select count(*) from public.banquiger_teams t where season='2026-2027' and created_at<(v_round->>'deadline')::timestamptz and jsonb_array_length(coalesce(v_state->'snapshots'->p_round->(t.id::text),t.selected_ids)) between 5 and 7) then raise exception 'Actualiza la lista de equipos antes de publicar.'; end if;
   v_snapshots:=coalesce(v_state->'snapshots'->p_round,'{}'::jsonb);
   v_lineups:=coalesce(v_state->'lineups'->p_round,'{}'::jsonb);
   for v_entry in select * from jsonb_array_elements(p_ranking) loop

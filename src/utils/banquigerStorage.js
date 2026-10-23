@@ -58,7 +58,7 @@ export const normalizeBanquigerSettings = (settings = {}) => ({
     ? clampNumber(settings.budget, defaultBanquigerSettings.budget, 1, 50)
     : defaultBanquigerSettings.budget,
   economyVersion: 6,
-  teamSize: Math.round(clampNumber(settings.teamSize, defaultBanquigerSettings.teamSize, 5, 12)),
+  teamSize: Math.round(clampNumber(settings.teamSize, defaultBanquigerSettings.teamSize, 5, 7)),
   starterNonPointMultiplier: clampNumber(
     settings.starterNonPointMultiplier,
     defaultBanquigerSettings.starterNonPointMultiplier,

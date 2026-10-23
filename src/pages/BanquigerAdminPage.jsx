@@ -1,4 +1,4 @@
-import { formatBanquigerPositions, getBanquigerPositions } from '@/utils/banquigerPositions.js';
+import { formatBanquigerPositions, getBanquigerPositions, isBanquigerRosterSizeValid } from '@/utils/banquigerPositions.js';
 import { POWER_RARITIES, scorePowerRound } from '@/utils/banquigerPowers.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -323,7 +323,7 @@ const BanquigerAdminPage = () => {
           id: String(team.id), team: team.name,
           selectedIds: ledger.data.snapshots?.[target.name]?.[String(team.id)] || (team.selected_ids || []).map(String),
           lineupSlots: ledger.data.lineups?.[target.name]?.[String(team.id)] || team.lineup_slots,
-        })).filter(team => team.selectedIds.length === 7),
+        })).filter(team => isBanquigerRosterSizeValid(team.selectedIds)),
         players, gameStats: data.gameStats, advancedStats: data.advancedStats,
         matchId: target.matchId, multiplier: settings.starterNonPointMultiplier,
         uses: ledger.data.uses.filter(use => use.round === target.name),
