@@ -9,7 +9,7 @@ export const menRoster = [
     height: '1.70m',
     antiguedad: 2,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/3f178f3647e8c7abbf5c10a0fd474b15.png',
+      '/img/players/101.webp',
     instagram: 'jesus13am',
     team: 'masculine',
   },
@@ -21,7 +21,7 @@ export const menRoster = [
     height: '1.80m',
     antiguedad: 1,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/804e2a528acdf701b3d234083e5b5072.png',
+      '/img/players/102.webp',
     instagram: 'alenmartin95',
     team: 'masculine',
   },
@@ -33,7 +33,7 @@ export const menRoster = [
     height: '1.93m',
     antiguedad: 4,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/cf67cb6e99f20658408b80204da3d0d2.png',
+      '/img/players/103.webp',
     instagram: 'diego5sanz',
     team: 'masculine',
   },
@@ -45,7 +45,7 @@ export const menRoster = [
     height: '1.80m',
     antiguedad: 3,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/fea0183a7c4147bf9c011cb15b789944.png',
+      '/img/players/104.webp',
     instagram: 'alber_parraga',
     team: 'masculine',
   },
@@ -57,7 +57,7 @@ export const menRoster = [
     height: '1.78m',
     antiguedad: 2,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/8cfc62e042c160015b9cc95c593ac62a.png',
+      '/img/players/105.webp',
     instagram: 'danielnoseque',
     team: 'masculine',
   },
@@ -69,7 +69,7 @@ export const menRoster = [
     height: '1.80m',
     antiguedad: 1,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/206f89f84bf50653a6be7e6444221e71.png',
+      '/img/players/106.webp',
     instagram: 'markelpb16',
     team: 'masculine',
   },
@@ -81,7 +81,7 @@ export const menRoster = [
     height: '1.92m',
     antiguedad: 5,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/1282a8309610bf4ecbedfba693e3a8aa.png',
+      '/img/players/107.webp',
     team: 'masculine',
   },
   {
@@ -92,7 +92,7 @@ export const menRoster = [
     height: '1.96m',
     antiguedad: 2,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/8c2c5f68384c1335bc4eaed9578e4148.png',
+      '/img/players/108.webp',
     instagram: 'carlosetorres95',
     team: 'masculine',
   },
@@ -104,7 +104,7 @@ export const menRoster = [
     height: '1.92m',
     antiguedad: 3,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/fbff2dd1742524bd6d97d153b3290e85.png',
+      '/img/players/109.webp',
     instagram: 'emachin86',
     team: 'masculine',
   },
@@ -116,7 +116,7 @@ export const menRoster = [
     height: '1.83m',
     antiguedad: 4,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/310ff8c89ad4e8e8bc9a838cde9ec57d.png',
+      '/img/players/110.webp',
     instagram: '_utri_23.26',
     team: 'masculine',
   },
@@ -128,7 +128,7 @@ export const menRoster = [
     height: '1.86m',
     antiguedad: 1,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/05b1643a7ff3741cf4dfd6d28af2454b.png',
+      '/img/players/111.webp',
     instagram: 'salinass_14',
     team: 'masculine',
   },
@@ -140,7 +140,7 @@ export const menRoster = [
     height: '1.91m',
     antiguedad: 2,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/4222c7cecf84975cc991ae8ff7cf5a6c.png',
+      '/img/players/112.webp',
     instagram: 'mariex_27',
     team: 'masculine',
   },
@@ -152,7 +152,7 @@ export const menRoster = [
     height: '1.78m',
     antiguedad: 3,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/ad0c2e5dd811de071f0a5bec964e28f1.png',
+      '/img/players/113.webp',
     instagram: 'unai_basket6',
     team: 'masculine',
   },
@@ -164,7 +164,7 @@ export const menRoster = [
     height: '1.75m',
     antiguedad: 1,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/8c996d58846e1ea3cef741522d96d125.png',
+      '/img/players/114.webp',
     instagram: '_.julio._15',
     team: 'masculine',
   },
@@ -176,7 +176,7 @@ export const menRoster = [
     height: '1.80m',
     antiguedad: 2,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/cede1628c35f2de25b9aac1aba244f18.png',
+      '/img/players/115.webp',
     instagram: 'mevil1309',
     team: 'masculine',
   },
@@ -188,7 +188,7 @@ export const menRoster = [
     height: '1.70m',
     antiguedad: 4,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/7889a349a3fee26b13a70ea72960678e.png',
+      '/img/players/116.webp',
     instagram: 'whiskyiker_',
     team: 'masculine',
   },
@@ -200,7 +200,7 @@ export const menRoster = [
     height: '1.83m',
     antiguedad: 6,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/383fa450420a74cb2d9ea3dc0a57f9fa.png',
+      '/img/players/117.webp',
     instagram: 'torres_12_1998',
     team: 'masculine',
   },
@@ -215,7 +215,7 @@ export const femalePlayers = [
     height: '1.70m',
     antiguedad: 2,
     poster:
-      'https://horizons-cdn.hostinger.com/8b60c12a-dc60-4dfa-9119-538609918aef/4b741e166547cb5a3b67adb71045b878.png',
+      '/img/players/201.webp',
     instagram: 'saraparmez',
     team: 'feminine',
   },

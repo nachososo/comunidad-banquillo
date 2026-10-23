@@ -12,6 +12,10 @@ const PlayerCard = ({ player }) => {
         <img
           src={player.poster}
           alt={player.name}
+          loading="lazy"
+          decoding="async"
+          width="720"
+          height="1080"
           className="w-full h-full object-cover transition-smooth group-hover:scale-105"
         />
       </div>
