@@ -243,7 +243,7 @@ const rules = [
   {
     icon: ArrowRightLeft,
     title: 'Mercado',
-    text: 'Sube 0,1 M al superar la media anterior en al menos 2 puntos; baja 0,1 M al quedar 5 o más por debajo o no jugar. Mínimo: 0,3 M.',
+    text: 'Sube 0,1 M con una valoración de 15 o más o al superar la media anterior en al menos 2 puntos; baja 0,1 M al quedar 5 o más por debajo o no jugar. Mínimo: 0,3 M.',
   },
 ];
 
