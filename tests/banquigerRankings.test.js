@@ -80,3 +80,25 @@ test('league ties share titles and separate seasons do not crown an unfinished l
   assert.equal(honours.winners.every(winner => winner.leagueWins === 1), true);
   assert.deepEqual(buildBanquigerHonours().winners, []);
 });
+
+const { getPersonalBanquigerTitles } = await import('../src/utils/banquigerRankings.js');
+test('personal trophy cabinet includes only the signed-in user, including shared wins', () => {
+  const results = [honoursResult(honoursRounds[0].name, 17, 17), honoursResult(honoursRounds[1].name, 80, 90)];
+  const personal = getPersonalBanquigerTitles(buildBanquigerHonours(results, honoursRounds, honoursTeams, 'me'));
+  assert.equal(personal.length, 1);
+  assert.equal(personal[0].label, 'Jornada 1');
+  assert.equal(personal[0].shared, true);
+  assert.equal(personal[0].entry.id, 'a');
+  assert.equal(personal[0].season, '2026/2027');
+  assert.deepEqual(getPersonalBanquigerTitles(buildBanquigerHonours(results, honoursRounds, honoursTeams, 'other-user')), []);
+  const champion = getPersonalBanquigerTitles(buildBanquigerHonours(results, honoursRounds, honoursTeams, undefined));
+  assert.deepEqual(champion, []);
+});
+
+test('personal cabinet displays league cup only for the league winner', () => {
+  const results = [honoursResult(honoursRounds[0].name, 20, 10), honoursResult(honoursRounds[1].name, 30, 10)];
+  const personal = getPersonalBanquigerTitles(buildBanquigerHonours(results, honoursRounds, honoursTeams, 'me'));
+  assert.equal(personal.length, 3);
+  assert.equal(personal[0].type, 'league');
+  assert.equal(personal[0].points, 50);
+});

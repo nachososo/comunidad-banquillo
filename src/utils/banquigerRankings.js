@@ -59,3 +59,15 @@ export const buildBanquigerHonours = (results = [], rounds = [], teams = [], use
   const winners = [...counts.values()].sort((a, b) => b.leagueWins - a.leagueWins || b.roundWins - a.roundWins || a.id.localeCompare(b.id));
   return { victories, champions, winners, own: winners.find(winner => winner.current) };
 };
+
+export const getPersonalBanquigerTitles = (honours) => [
+  ...honours.champions.flatMap(champion => champion.winners.filter(winner => winner.current).map(winner => ({
+    id: `league-${champion.season}`, type: 'league', label: 'Campeón de liga',
+    season: champion.season.replace('-', '/'), points: winner.points, shared: champion.winners.length > 1,
+  }))),
+  ...honours.victories.flatMap(victory => victory.winners.filter(winner => winner.current).map(winner => ({
+    id: victory.round, type: 'round', label: victory.round.split(' · ')[0],
+    season: victory.season.replace('-', '/'), points: winner.points, shared: victory.winners.length > 1,
+    entry: winner,
+  }))),
+];

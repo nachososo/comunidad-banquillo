@@ -1,4 +1,4 @@
-import { getPublishedRoundRankings, buildRoundLeaderboard, buildBanquigerHonours } from '@/utils/banquigerRankings.js';
+import { getPublishedRoundRankings, buildRoundLeaderboard, buildBanquigerHonours, getPersonalBanquigerTitles } from '@/utils/banquigerRankings.js';
 import { hasRecordedGameAppearance } from '@/utils/playerSeasonStats.js';
 import { buildBanquigerLineup, reconcileBanquigerSlots, moveBanquigerPlayer, formatBanquigerPositions, getBanquigerPositions, isBanquigerRosterSizeValid } from '@/utils/banquigerPositions.js';
 import BanquigerLineupBoard from '@/components/BanquigerLineupBoard.jsx';
@@ -572,6 +572,7 @@ const BanquigerPage = () => {
   const rankingEntries = rankingView === 'round' ? roundLeaderboard : leaderboard;
   const roundWinners = roundLeaderboard.filter(entry => entry.winner);
   const honours = buildBanquigerHonours(powerState.results, rounds, registeredTeams, user?.id);
+  const personalTitles = getPersonalBanquigerTitles(honours);
 
   const persistTeam = (nextSelectedIds = selectedIds, nextTeamName = teamName, nextSlots = resolvedSlots) => {
     window.localStorage.setItem(
@@ -933,56 +934,53 @@ const BanquigerPage = () => {
   />;
 
   const renderHonours = () => (
-    <section className="rounded-xl border border-[hsl(43_65%_52%_/_0.18)] bg-[#111]/90 p-4">
-      <div className="mb-5 flex items-center gap-3">
-        <Trophy size={24} className="text-[hsl(43_65%_52%)]" />
-        <h2 className="text-xl font-black text-white">Palmarés</h2>
+    <section className="relative overflow-hidden px-2 py-8 sm:px-6" aria-label="Tu palmarés">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(210,171,67,0.10),transparent_70%)]" />
+      <div className="relative mb-10 text-center">
+        <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[hsl(43_65%_52%)]">Tu vitrina</p>
+        <h2 className="mt-2 text-3xl font-black text-white sm:text-4xl">Palmarés</h2>
+        {personalTitles.length > 0 && <p className="mt-3 text-sm text-gray-400">{honours.own?.roundWins || 0} jornadas <span className="mx-2 text-gray-700">/</span> {honours.own?.leagueWins || 0} ligas</p>}
       </div>
-      <div className="mb-6 rounded-xl border border-[hsl(43_65%_52%_/_0.35)] bg-[hsl(43_65%_52%_/_0.08)] p-4">
-        <h3 className="font-black text-white">Tus títulos</h3>
-        <div className="mt-3 flex flex-wrap gap-6">
-          <p className="text-gray-300"><strong className="text-2xl text-[hsl(43_65%_52%)]">{honours.own?.roundWins || 0}</strong> jornadas ganadas</p>
-          <p className="text-gray-300"><strong className="text-2xl text-[hsl(43_65%_52%)]">{honours.own?.leagueWins || 0}</strong> ligas ganadas</p>
+      {personalTitles.length > 0 ? (
+        <div className="relative grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
+          {personalTitles.map(title => {
+            const trophy = (
+              <>
+                <div className="relative mx-auto flex h-40 w-36 items-center justify-center transition duration-300 group-hover:-translate-y-1 sm:h-48 sm:w-44">
+                  <div className="absolute inset-0 rounded-full bg-[radial-gradient(ellipse,rgba(220,180,74,0.16),transparent_68%)]" />
+                  <svg viewBox="0 0 160 160" className="absolute h-36 w-36 text-[#aa8538]/65 sm:h-44 sm:w-44" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                    <path d="M58 135C19 115 15 69 34 36M102 135c39-20 43-66 24-99" />
+                    {[0, 1, 2, 3, 4, 5].map(leaf => (
+                      <g key={leaf} transform={`rotate(${leaf * 13} 80 80)`}>
+                        <path d="M29 83Q10 75 18 60Q34 65 29 83ZM131 83q19-8 11-23q-16 5-11 23Z" fill="currentColor" stroke="none" />
+                      </g>
+                    ))}
+                  </svg>
+                  <Trophy size={title.type === 'league' ? 82 : 64} strokeWidth={1.2}
+                    className={`relative drop-shadow-[0_5px_14px_rgba(225,177,47,0.28)] ${title.type === 'league' ? 'fill-[#c79a32]/30 text-[#ffe299]' : 'fill-[#b78d2e]/20 text-[#dbb75b]'}`} />
+                  <span className="absolute bottom-3 left-1/2 h-px w-24 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#d0ab4b]/70 to-transparent" />
+                </div>
+                <span className="block text-sm font-black text-[#f2dfac] sm:text-base">{title.label}</span>
+                <span className="mt-1 block text-[11px] tracking-widest text-gray-500">{title.season}</span>
+                <span className="mt-2 block text-xs text-gray-400">{title.points.toFixed(1)} pts{title.shared ? ' · Compartido' : ''}</span>
+              </>
+            );
+            return title.entry ? (
+              <button key={title.id} type="button" onClick={() => setViewedRankingTeam(title.entry)}
+                aria-label={`Ver título de ${title.label}, ${title.season}`}
+                className="group rounded-lg pb-5 text-center outline-none focus-visible:ring-2 focus-visible:ring-[#d0ab4b]">
+                {trophy}
+              </button>
+            ) : <div key={title.id} className="group pb-5 text-center">{trophy}</div>;
+          })}
         </div>
-      </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-3">
-          <h3 className="text-lg font-black text-white">Recuento de ganadores</h3>
-          {honours.winners.map(entry => (
-            <div key={entry.id} className={`rounded-lg border p-3 ${entry.current ? 'border-[hsl(43_65%_52%)] bg-[hsl(43_65%_52%_/_0.08)]' : 'border-white/10 bg-black/25'}`}>
-              <p className="font-black text-white">{entry.manager}</p>
-              <p className="text-xs text-gray-500">{entry.team}</p>
-              <p className="mt-2 text-sm text-gray-300">{entry.roundWins} {entry.roundWins === 1 ? 'jornada ganada' : 'jornadas ganadas'} · {entry.leagueWins} {entry.leagueWins === 1 ? 'liga ganada' : 'ligas ganadas'}</p>
-            </div>
-          ))}
-          {!honours.winners.length && <p className="text-sm text-gray-500">Todavía no hay títulos repartidos.</p>}
-          <h3 className="pt-3 text-lg font-black text-white">Campeones de liga</h3>
-          {honours.champions.map(champion => (
-            <div key={champion.season} className="rounded-lg border border-[hsl(43_65%_52%_/_0.35)] p-3">
-              <p className="text-xs font-bold text-[hsl(43_65%_52%)]">Temporada {champion.season.replace('-', '/')}</p>
-              {champion.winners.map(winner => <p key={winner.id} className="mt-2 font-black text-white">{winner.manager} · {winner.team} · {winner.points.toFixed(1)} pts</p>)}
-            </div>
-          ))}
-          {!honours.champions.length && <p className="text-sm text-gray-500">El título de liga se entrega al publicar todas las jornadas de la temporada.</p>}
+      ) : (
+        <div className="relative pb-16 pt-3 text-center">
+          <Trophy size={112} strokeWidth={0.8} className="mx-auto text-[#a68a4d]/30" aria-hidden="true" />
+          <div className="mx-auto mt-5 h-px w-48 bg-gradient-to-r from-transparent via-[#a68a4d]/30 to-transparent" />
+          <p className="mt-6 text-sm text-gray-500">Tu primer trofeo está por llegar.</p>
         </div>
-        <div className="space-y-3">
-          <h3 className="text-lg font-black text-white">Jornadas ganadas</h3>
-          {honours.victories.map(victory => (
-            <div key={victory.round} className="rounded-lg border border-white/10 bg-black/25 p-3">
-              <p className="text-xs font-bold text-[hsl(43_65%_52%)]">{victory.round}</p>
-              {victory.winners.map(winner => (
-                <button key={winner.id} type="button" onClick={() => setViewedRankingTeam(winner)}
-                  className="mt-2 flex w-full items-center justify-between gap-3 rounded-lg p-2 text-left transition hover:bg-white/5">
-                  <span className="min-w-0"><span className="block font-black text-white">{winner.manager}</span><span className="block truncate text-xs text-gray-500">{winner.team}</span></span>
-                  <span className="shrink-0 text-sm font-bold text-white">{winner.points.toFixed(1)} pts <Eye className="ml-1 inline" size={14} /></span>
-                </button>
-              ))}
-              {victory.winners.length > 1 && <p className="mt-1 text-xs text-gray-500">Victoria compartida</p>}
-            </div>
-          ))}
-          {!honours.victories.length && <p className="text-sm text-gray-500">Todavía no hay jornadas publicadas.</p>}
-        </div>
-      </div>
+      )}
       {renderRankingTeamModal()}
     </section>
   );
