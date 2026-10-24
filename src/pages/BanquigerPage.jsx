@@ -937,9 +937,9 @@ const BanquigerPage = () => {
     <section className="relative overflow-hidden px-2 py-8 sm:px-6" aria-label="Tu palmarés">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(210,171,67,0.10),transparent_70%)]" />
       <div className="relative mb-10 text-center">
-        <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[hsl(43_65%_52%)]">Tu vitrina</p>
+        <p className="mx-auto w-full max-w-none text-[10px] font-bold uppercase tracking-[0.35em] text-[hsl(43_65%_52%)]">Tu vitrina</p>
         <h2 className="mt-2 text-3xl font-black text-white sm:text-4xl">Palmarés</h2>
-        {personalTitles.length > 0 && <p className="mt-3 text-sm text-gray-400">{honours.own?.roundWins || 0} jornadas <span className="mx-2 text-gray-700">/</span> {honours.own?.leagueWins || 0} ligas</p>}
+        {personalTitles.length > 0 && <p className="mx-auto mt-3 w-full max-w-none text-sm text-gray-400">{honours.own?.roundWins || 0} jornadas <span className="mx-2 text-gray-700">/</span> {honours.own?.leagueWins || 0} ligas</p>}
       </div>
       {personalTitles.length > 0 ? (
         <div className="relative grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
@@ -978,7 +978,7 @@ const BanquigerPage = () => {
         <div className="relative pb-16 pt-3 text-center">
           <Trophy size={112} strokeWidth={0.8} className="mx-auto text-[#a68a4d]/30" aria-hidden="true" />
           <div className="mx-auto mt-5 h-px w-48 bg-gradient-to-r from-transparent via-[#a68a4d]/30 to-transparent" />
-          <p className="mt-6 text-sm text-gray-500">Tu primer trofeo está por llegar.</p>
+          <p className="mx-auto mt-6 w-full max-w-none text-sm text-gray-500">Tu primer trofeo está por llegar.</p>
         </div>
       )}
       {renderRankingTeamModal()}
