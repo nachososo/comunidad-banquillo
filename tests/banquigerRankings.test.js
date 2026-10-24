@@ -39,3 +39,44 @@ test('tied leaders share winner status and rank, with stable order', () => {
   ]);
   assert.deepEqual(buildRoundLeaderboard(undefined), []);
 });
+
+const { buildBanquigerHonours } = await import('../src/utils/banquigerRankings.js');
+const honoursRounds = [
+  { name: 'Jornada 1 · 2026/2027', season: '2026-2027', automatic: true, matchId: 22 },
+  { name: 'Jornada 2 · 2026/2027', season: '2026-2027', automatic: true, matchId: 23 },
+];
+const honoursTeams = [{ id: 'a', user_id: 'me', name: 'Current name', manager_name: 'Carlos' }, { id: 'b', manager_name: 'Julio' }];
+const honoursResult = (round, a, b) => ({ round, ranking: [
+  { id: 'a', team: 'Old name', points: a, selectedIds: ['108'] },
+  { id: 'b', team: 'Other', points: b, selectedIds: ['104'] },
+] });
+
+test('honours count shared round victories and wait for every scheduled round before league title', () => {
+  const first = honoursResult(honoursRounds[0].name, 17, 17);
+  const honours = buildBanquigerHonours([first], honoursRounds, honoursTeams, 'me');
+  assert.equal(honours.victories[0].winners.length, 2);
+  assert.equal(honours.own.roundWins, 1);
+  assert.equal(honours.own.leagueWins, 0);
+  assert.equal(honours.own.team, 'Current name');
+  assert.deepEqual(honours.champions, []);
+});
+
+test('league titles use summed settled results, ignoring current roster and stored totals', () => {
+  const results = [honoursResult(honoursRounds[0].name, 17, 17), honoursResult(honoursRounds[1].name, 90, 89)];
+  const honours = buildBanquigerHonours(results, honoursRounds, honoursTeams.map(team => ({ ...team, total_points: 999, selected_ids: ['115'] })), 'me');
+  assert.equal(honours.champions.length, 1);
+  assert.deepEqual(honours.champions[0].winners.map(winner => [winner.id, winner.points]), [['a', 107]]);
+  assert.equal(honours.own.roundWins, 2);
+  assert.equal(honours.own.leagueWins, 1);
+  assert.equal(honours.winners[1].roundWins, 1);
+});
+
+test('league ties share titles and separate seasons do not crown an unfinished league', () => {
+  const rounds = [...honoursRounds, { name: 'Jornada 1 · 2027/2028', season: '2027-2028', automatic: true }];
+  const results = [honoursResult(honoursRounds[0].name, 10, 20), honoursResult(honoursRounds[1].name, 20, 10)];
+  const honours = buildBanquigerHonours(results, rounds, honoursTeams, 'me');
+  assert.equal(honours.champions.length, 1);
+  assert.equal(honours.champions[0].winners.length, 2);
+  assert.equal(honours.winners.every(winner => winner.leagueWins === 1), true);
+  assert.deepEqual(buildBanquigerHonours().winners, []);
+});

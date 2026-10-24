@@ -1,4 +1,4 @@
-import { getPublishedRoundRankings, buildRoundLeaderboard } from '@/utils/banquigerRankings.js';
+import { getPublishedRoundRankings, buildRoundLeaderboard, buildBanquigerHonours } from '@/utils/banquigerRankings.js';
 import { hasRecordedGameAppearance } from '@/utils/playerSeasonStats.js';
 import { buildBanquigerLineup, reconcileBanquigerSlots, moveBanquigerPlayer, formatBanquigerPositions, getBanquigerPositions, isBanquigerRosterSizeValid } from '@/utils/banquigerPositions.js';
 import BanquigerLineupBoard from '@/components/BanquigerLineupBoard.jsx';
@@ -253,6 +253,7 @@ const dashboardMenu = [
   { id: 'market', label: 'Mercado', icon: Store },
   { id: 'powers', label: 'Poderes', icon: Zap },
   { id: 'ranking', label: 'Clasificaciones', icon: ListOrdered },
+  { id: 'honours', label: 'Palmarés', icon: Trophy },
 ];
 
 const JerseyVisual = ({ player, starter = false, size = 'md' }) => {
@@ -570,6 +571,7 @@ const BanquigerPage = () => {
   const roundLeaderboard = buildRoundLeaderboard(selectedRoundResult, registeredTeams, user?.id);
   const rankingEntries = rankingView === 'round' ? roundLeaderboard : leaderboard;
   const roundWinners = roundLeaderboard.filter(entry => entry.winner);
+  const honours = buildBanquigerHonours(powerState.results, rounds, registeredTeams, user?.id);
 
   const persistTeam = (nextSelectedIds = selectedIds, nextTeamName = teamName, nextSlots = resolvedSlots) => {
     window.localStorage.setItem(
@@ -930,6 +932,61 @@ const BanquigerPage = () => {
     open={settings.marketStatus === 'open'} onUse={usePower} notice={powerNotice}
   />;
 
+  const renderHonours = () => (
+    <section className="rounded-xl border border-[hsl(43_65%_52%_/_0.18)] bg-[#111]/90 p-4">
+      <div className="mb-5 flex items-center gap-3">
+        <Trophy size={24} className="text-[hsl(43_65%_52%)]" />
+        <h2 className="text-xl font-black text-white">Palmarés</h2>
+      </div>
+      <div className="mb-6 rounded-xl border border-[hsl(43_65%_52%_/_0.35)] bg-[hsl(43_65%_52%_/_0.08)] p-4">
+        <h3 className="font-black text-white">Tus títulos</h3>
+        <div className="mt-3 flex flex-wrap gap-6">
+          <p className="text-gray-300"><strong className="text-2xl text-[hsl(43_65%_52%)]">{honours.own?.roundWins || 0}</strong> jornadas ganadas</p>
+          <p className="text-gray-300"><strong className="text-2xl text-[hsl(43_65%_52%)]">{honours.own?.leagueWins || 0}</strong> ligas ganadas</p>
+        </div>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="space-y-3">
+          <h3 className="text-lg font-black text-white">Recuento de ganadores</h3>
+          {honours.winners.map(entry => (
+            <div key={entry.id} className={`rounded-lg border p-3 ${entry.current ? 'border-[hsl(43_65%_52%)] bg-[hsl(43_65%_52%_/_0.08)]' : 'border-white/10 bg-black/25'}`}>
+              <p className="font-black text-white">{entry.manager}</p>
+              <p className="text-xs text-gray-500">{entry.team}</p>
+              <p className="mt-2 text-sm text-gray-300">{entry.roundWins} {entry.roundWins === 1 ? 'jornada ganada' : 'jornadas ganadas'} · {entry.leagueWins} {entry.leagueWins === 1 ? 'liga ganada' : 'ligas ganadas'}</p>
+            </div>
+          ))}
+          {!honours.winners.length && <p className="text-sm text-gray-500">Todavía no hay títulos repartidos.</p>}
+          <h3 className="pt-3 text-lg font-black text-white">Campeones de liga</h3>
+          {honours.champions.map(champion => (
+            <div key={champion.season} className="rounded-lg border border-[hsl(43_65%_52%_/_0.35)] p-3">
+              <p className="text-xs font-bold text-[hsl(43_65%_52%)]">Temporada {champion.season.replace('-', '/')}</p>
+              {champion.winners.map(winner => <p key={winner.id} className="mt-2 font-black text-white">{winner.manager} · {winner.team} · {winner.points.toFixed(1)} pts</p>)}
+            </div>
+          ))}
+          {!honours.champions.length && <p className="text-sm text-gray-500">El título de liga se entrega al publicar todas las jornadas de la temporada.</p>}
+        </div>
+        <div className="space-y-3">
+          <h3 className="text-lg font-black text-white">Jornadas ganadas</h3>
+          {honours.victories.map(victory => (
+            <div key={victory.round} className="rounded-lg border border-white/10 bg-black/25 p-3">
+              <p className="text-xs font-bold text-[hsl(43_65%_52%)]">{victory.round}</p>
+              {victory.winners.map(winner => (
+                <button key={winner.id} type="button" onClick={() => setViewedRankingTeam(winner)}
+                  className="mt-2 flex w-full items-center justify-between gap-3 rounded-lg p-2 text-left transition hover:bg-white/5">
+                  <span className="min-w-0"><span className="block font-black text-white">{winner.manager}</span><span className="block truncate text-xs text-gray-500">{winner.team}</span></span>
+                  <span className="shrink-0 text-sm font-bold text-white">{winner.points.toFixed(1)} pts <Eye className="ml-1 inline" size={14} /></span>
+                </button>
+              ))}
+              {victory.winners.length > 1 && <p className="mt-1 text-xs text-gray-500">Victoria compartida</p>}
+            </div>
+          ))}
+          {!honours.victories.length && <p className="text-sm text-gray-500">Todavía no hay jornadas publicadas.</p>}
+        </div>
+      </div>
+      {renderRankingTeamModal()}
+    </section>
+  );
+
   const renderRanking = () => (
     <section className="rounded-xl border border-[hsl(43_65%_52%_/_0.18)] bg-[#111]/90 p-4">
       <div className="mb-4 flex flex-wrap gap-2" aria-label="Tipo de clasificación">
@@ -1142,7 +1199,7 @@ const BanquigerPage = () => {
                 )}
               </div>
 
-              <nav className="grid gap-2 md:grid-cols-4">
+              <nav className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
                 {dashboardMenu.map((item) => {
                   const Icon = item.icon;
                   const active = activeSection === item.id;
@@ -1151,7 +1208,7 @@ const BanquigerPage = () => {
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => setActiveSection(item.id)}
+                      onClick={() => { setActiveSection(item.id); setViewedRankingTeam(null); }}
                       className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-black uppercase transition ${
                         active
                           ? 'border-[hsl(43_65%_52%)] bg-[hsl(43_65%_52%)] text-black'
@@ -1169,6 +1226,7 @@ const BanquigerPage = () => {
               {activeSection === 'market' && renderMarket()}
               {activeSection === 'powers' && renderPowers()}
               {activeSection === 'ranking' && renderRanking()}
+              {activeSection === 'honours' && renderHonours()}
             </motion.section>
           )}
         </div>
