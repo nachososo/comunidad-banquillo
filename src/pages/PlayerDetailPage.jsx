@@ -508,7 +508,6 @@ const PlayerDetailPage = () => {
                           </div>
                         </div>
 
-                        <p className="text-xs text-gray-400">Cada media utiliza solo los partidos con datos de esa estadística. Los datos desconocidos no cuentan como cero.</p>
                         <div className="grid grid-cols-[repeat(auto-fit,minmax(7.25rem,1fr))] gap-4">
                           {advancedSummary.map((item) => (
                             <div
@@ -519,7 +518,6 @@ const PlayerDetailPage = () => {
                                 {item.label}
                               </span>
                               <p className="mt-2 text-white text-2xl font-black">{item.value}</p>
-                              <span className="mt-1 text-[0.6rem] text-gray-500">{item.games > 0 ? item.games + ' ' + (item.games === 1 ? 'partido con datos' : 'partidos con datos') : 'Sin datos'}</span>
                             </div>
                           ))}
                         </div>
