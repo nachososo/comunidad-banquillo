@@ -6,7 +6,7 @@ import { powerPlayerRow, scorePowerRound } from '../src/utils/banquigerPowers.js
 test('explicit federation valuation preserves zero and negatives, with ordinary formula unchanged', () => {
   assert.equal(getValuation({ valuationSource: 'federation', valuation: 0, ft: '0-2' }, 2), 0);
   assert.equal(getValuation({ valuationSource: 'federation', valuation: -5 }, 0), -5);
-  assert.equal(getValuation({ valuation: -5, ft: '0-2', fouls: 3 }, 0), -2);
+  assert.equal(getValuation({ valuation: -5, ft: '0-2', fouls: 3 }, 0), -5);
   assert.equal(getValuation({ valuationSource: 'federation', valuation: null, ft: '0-2' }, 2), 0);
   assert.equal(getValuation({ valuationSource: 'federation', valuation: '' }, 4), 4);
   assert.equal(getRebounds({ oreb: null, dreb: null }), null);

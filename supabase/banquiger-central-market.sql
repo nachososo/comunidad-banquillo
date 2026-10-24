@@ -28,7 +28,7 @@ begin
         if played then
           if s.valuation_source in ('federation','federation-direct') and s.valuation is not null then val:=s.valuation;
           else
-            val:=s.points+coalesce(s.offensive_rebounds,0)+coalesce(s.defensive_rebounds,0)+coalesce(s.assists,0)+coalesce(s.steals,0)+coalesce(s.blocks,0)-coalesce(s.turnovers,0)
+            val:=s.points+coalesce(s.offensive_rebounds,0)+coalesce(s.defensive_rebounds,0)+coalesce(s.assists,0)+coalesce(s.steals,0)+coalesce(s.blocks,0)-coalesce(s.turnovers,0)-coalesce(s.fouls,0)
               -case when s.field_goals ~ '^[0-9]+-[0-9]+$' then greatest(0,split_part(s.field_goals,'-',2)::int-split_part(s.field_goals,'-',1)::int) else 0 end
               -case when s.free_throws ~ '^[0-9]+-[0-9]+$' then greatest(0,split_part(s.free_throws,'-',2)::int-split_part(s.free_throws,'-',1)::int) else 0 end;
           end if;

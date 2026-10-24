@@ -31,3 +31,12 @@ test('starter bonus is positive contributions, even when penalties outweigh them
     assert.equal(starter.f-bench.f,assists);
   }
 });
+
+test('Carlos full round 2 box score subtracts two fouls once, even for starters', () => {
+ const game={minutes:'39:42',points:17};
+ const stat={fg:'6-12',threePt:'0-2',ft:'5-9',oreb:3,dreb:15,assists:1,steals:1,blocks:0,turnovers:8,fouls:2};
+ assert.equal(powerPlayerRow(game,stat,false).f,17);
+ assert.equal(powerPlayerRow(game,stat,true).f,37);
+ const withoutFouls=powerPlayerRow(game,{...stat,fouls:0},true).f;
+ assert.equal(withoutFouls-powerPlayerRow(game,stat,true).f,2);
+});

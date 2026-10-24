@@ -50,7 +50,8 @@ export const getValuation = (stat, points) => {
     (stat.blocks || 0) -
     missedFieldGoals -
     missedFreeThrows -
-    (stat.turnovers || 0)
+    (stat.turnovers || 0) -
+    (stat.fouls || 0)
   );
 };
 
