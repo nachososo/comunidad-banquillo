@@ -1,3 +1,4 @@
+import { getPublishedRoundRankings, buildRoundLeaderboard } from '@/utils/banquigerRankings.js';
 import { hasRecordedGameAppearance } from '@/utils/playerSeasonStats.js';
 import { buildBanquigerLineup, reconcileBanquigerSlots, moveBanquigerPlayer, formatBanquigerPositions, getBanquigerPositions, isBanquigerRosterSizeValid } from '@/utils/banquigerPositions.js';
 import BanquigerLineupBoard from '@/components/BanquigerLineupBoard.jsx';
@@ -251,7 +252,7 @@ const dashboardMenu = [
   { id: 'team', label: 'Tu equipo', icon: Shirt },
   { id: 'market', label: 'Mercado', icon: Store },
   { id: 'powers', label: 'Poderes', icon: Zap },
-  { id: 'ranking', label: 'Clasificación general', icon: ListOrdered },
+  { id: 'ranking', label: 'Clasificaciones', icon: ListOrdered },
 ];
 
 const JerseyVisual = ({ player, starter = false, size = 'md' }) => {
@@ -388,6 +389,8 @@ const BanquigerPage = () => {
   const [priceSort, setPriceSort] = useState('all');
   const [valuationSort, setValuationSort] = useState('all');
   const [activeSection, setActiveSection] = useState('team');
+  const [rankingView, setRankingView] = useState('general');
+  const [selectedRankingRound, setSelectedRankingRound] = useState('');
   const [viewedRankingTeam, setViewedRankingTeam] = useState(null);
   const [saved, setSaved] = useState(false);
   const [powers, setPowers] = useState(() => getStoredBanquigerPowers());
@@ -562,6 +565,12 @@ const BanquigerPage = () => {
     };
   }).sort((a, b) => b.points - a.points || (a.current ? ownTeamId : a.id).localeCompare(b.current ? ownTeamId : b.id));
 
+  const publishedRoundRankings = getPublishedRoundRankings(powerState.results, rounds);
+  const selectedRoundResult = publishedRoundRankings.find(result => result.round === selectedRankingRound) || publishedRoundRankings[0];
+  const roundLeaderboard = buildRoundLeaderboard(selectedRoundResult, registeredTeams, user?.id);
+  const rankingEntries = rankingView === 'round' ? roundLeaderboard : leaderboard;
+  const roundWinners = roundLeaderboard.filter(entry => entry.winner);
+
   const persistTeam = (nextSelectedIds = selectedIds, nextTeamName = teamName, nextSlots = resolvedSlots) => {
     window.localStorage.setItem(
       teamStorageKey,
@@ -676,8 +685,11 @@ const BanquigerPage = () => {
     } = buildLineup(viewedPlayers, viewedRankingTeam.lineupSlots);
     const viewedCost = viewedPlayers.reduce((total, player) => total + player.price, 0);
 
+    const viewedRows = viewedRankingTeam.roundName
+      ? new Map(getMatchPlayerRows(viewedRankingTeam.matchId, marketPlayers, matchData).map(row => [row.player.id, row]))
+      : rowsByPlayer;
     const modalToken = (player, slotLabel, starter = false) => (
-      <PlayerToken player={player} row={rowsByPlayer.get(player?.id)} compact starter={starter} slotLabel={slotLabel} />
+      <PlayerToken player={player} row={viewedRows.get(player?.id)} compact starter={starter} slotLabel={slotLabel} />
     );
 
     return (
@@ -688,7 +700,7 @@ const BanquigerPage = () => {
               <p className="text-xs font-bold uppercase text-[hsl(43_65%_52%)]">{viewedRankingTeam.manager}</p>
               <h2 className="text-2xl font-black text-white">{viewedRankingTeam.team}</h2>
               <p className="mt-1 text-xs text-gray-500">
-                {viewedRankingTeam.points.toFixed(1)} pts · Coste {formatMoney(viewedCost)}
+                {viewedRankingTeam.points.toFixed(1)} pts · {viewedRankingTeam.roundName || `Coste ${formatMoney(viewedCost)}`}
               </p>
             </div>
             <button
@@ -920,19 +932,47 @@ const BanquigerPage = () => {
 
   const renderRanking = () => (
     <section className="rounded-xl border border-[hsl(43_65%_52%_/_0.18)] bg-[#111]/90 p-4">
+      <div className="mb-4 flex flex-wrap gap-2" aria-label="Tipo de clasificación">
+        {[['general', 'General'], ['round', 'Por jornada']].map(([value, label]) => (
+          <button key={value} type="button" aria-pressed={rankingView === value}
+            onClick={() => { setRankingView(value); setViewedRankingTeam(null); }}
+            className={`rounded-lg border px-4 py-2 text-sm font-bold ${rankingView === value ? 'border-[hsl(43_65%_52%)] bg-[hsl(43_65%_52%)] text-black' : 'border-white/10 text-gray-300'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
       <div className="mb-4 flex items-center gap-3">
         <ListOrdered size={22} className="text-[hsl(43_65%_52%)]" />
         <div>
-          <p className="text-xs font-bold uppercase text-[hsl(43_65%_52%)]">Clasificación general</p>
-          <h2 className="text-xl font-black text-white">Puntos acumulados</h2>
+          <p className="text-xs font-bold uppercase text-[hsl(43_65%_52%)]">{rankingView === 'round' ? 'Clasificación de la jornada' : 'Clasificación general'}</p>
+          <h2 className="text-xl font-black text-white">{rankingView === 'round' ? 'Puntos de la jornada' : 'Puntos acumulados'}</h2>
         </div>
       </div>
 
+      {rankingView === 'round' && publishedRoundRankings.length > 0 && (
+        <div className="mb-4 space-y-3">
+          <label className="block text-sm font-bold text-gray-300">
+            Jornada
+            <select value={selectedRoundResult.round} onChange={event => { setSelectedRankingRound(event.target.value); setViewedRankingTeam(null); }}
+              className="mt-2 block w-full rounded-lg border border-white/20 bg-[#171717] p-3 text-white sm:max-w-sm">
+              {publishedRoundRankings.map(result => <option key={result.round} value={result.round}>{result.round}</option>)}
+            </select>
+          </label>
+          <div className="flex items-start gap-3 rounded-lg border border-[hsl(43_65%_52%_/_0.35)] bg-[hsl(43_65%_52%_/_0.08)] p-3">
+            <Trophy className="shrink-0 text-[hsl(43_65%_52%)]" size={22} />
+            <div>
+              <p className="text-xs font-bold uppercase text-[hsl(43_65%_52%)]">{roundWinners.length > 1 ? 'Ganadores empatados' : 'Ganador de la jornada'}</p>
+              <p className="font-black text-white">{roundWinners.map(entry => `${entry.team} (${entry.manager})`).join(' · ')}</p>
+              <p className="text-sm text-gray-400">{roundWinners[0]?.points.toFixed(1)} pts</p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="space-y-2">
-        {leaderboard.length > 0 ? leaderboard.map((entry, index) => (
+        {rankingEntries.length > 0 ? rankingEntries.map((entry, index) => (
           <button
             type="button"
-            key={`${entry.manager}-${entry.team}`}
+            key={entry.id}
             onClick={() => setViewedRankingTeam(entry)}
             className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-lg border px-3 py-3 text-left transition hover:border-[hsl(43_65%_52%_/_0.65)] ${
               entry.current
@@ -941,7 +981,7 @@ const BanquigerPage = () => {
             }`}
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-black/45 text-sm font-black text-[hsl(43_65%_52%)]">
-              {index + 1}
+              {entry.rank || index + 1}
             </span>
             <div className="min-w-0">
               <h3 className="truncate text-sm font-black text-white">{entry.team}</h3>
@@ -958,8 +998,8 @@ const BanquigerPage = () => {
         )) : (
           <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-5 py-8 text-center">
             <UsersRound className="mx-auto text-white/20" />
-            <p className="mt-3 font-black text-gray-300">Todavía no hay equipos en la clasificación</p>
-            <p className="mt-1 text-sm text-gray-600">Los equipos aparecerán aquí cuando sus usuarios los creen.</p>
+            <p className="mt-3 font-black text-gray-300">{rankingView === 'round' ? 'Todavía no hay jornadas publicadas' : 'Todavía no hay equipos en la clasificación'}</p>
+            <p className="mt-1 text-sm text-gray-600">{rankingView === 'round' ? 'La clasificación aparecerá al repartir los puntos de la jornada.' : 'Los equipos aparecerán aquí cuando sus usuarios los creen.'}</p>
           </div>
         )}
       </div>
