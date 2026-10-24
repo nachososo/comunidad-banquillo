@@ -239,21 +239,21 @@ const PlayerDetailPage = () => {
   const { playedGames, totalPoints, averageMinutes, averagePoints } = summarizePlayerSeason(seasonStats);
   const advancedTrackedGames = playedGames.filter((stat) => stat.advanced);
   const advancedTotals = buildAdvancedTotals(advancedTrackedGames);
-  const formatAverage = (value, games = advancedTrackedGames.length) => {
+  const formatAverage = (value, games) => {
     if (!games) return '-';
 
     return (value / games).toFixed(1);
   };
   const advancedSummary = [
-    { label: 'REB media', value: formatAverage(advancedTotals.rebounds) },
-    { label: 'TC%', value: formatPercentage(advancedTotals.fgMade, advancedTotals.fgAttempted) },
-    { label: 'T3%', value: formatPercentage(advancedTotals.threePtMade, advancedTotals.threePtAttempted) },
-    { label: 'TL%', value: formatPercentage(advancedTotals.ftMade, advancedTotals.ftAttempted) },
-    { label: 'ROB media', value: formatAverage(advancedTotals.steals) },
-    { label: 'AST media', value: formatAverage(advancedTotals.assists) },
-    { label: 'FAL media', value: formatAverage(advancedTotals.fouls) },
-    { label: 'PER media', value: formatAverage(advancedTotals.turnovers) },
-    { label: 'VAL media', value: formatAverage(advancedTotals.valuation) },
+    { label: 'REB media', value: formatAverage(advancedTotals.rebounds, advancedTotals.counts.rebounds), games: advancedTotals.counts.rebounds },
+    { label: 'TC%', value: formatPercentage(advancedTotals.fgMade, advancedTotals.fgAttempted), games: advancedTotals.counts.fg },
+    { label: 'T3%', value: formatPercentage(advancedTotals.threePtMade, advancedTotals.threePtAttempted), games: advancedTotals.counts.threePt },
+    { label: 'TL%', value: formatPercentage(advancedTotals.ftMade, advancedTotals.ftAttempted), games: advancedTotals.counts.ft },
+    { label: 'ROB media', value: formatAverage(advancedTotals.steals, advancedTotals.counts.steals), games: advancedTotals.counts.steals },
+    { label: 'AST media', value: formatAverage(advancedTotals.assists, advancedTotals.counts.assists), games: advancedTotals.counts.assists },
+    { label: 'FAL media', value: formatAverage(advancedTotals.fouls, advancedTotals.counts.fouls), games: advancedTotals.counts.fouls },
+    { label: 'PER media', value: formatAverage(advancedTotals.turnovers, advancedTotals.counts.turnovers), games: advancedTotals.counts.turnovers },
+    { label: 'VAL media', value: formatAverage(advancedTotals.valuation, advancedTotals.counts.valuation), games: advancedTotals.counts.valuation },
   ];
 
   const formatShortDate = (dateString) => {
@@ -508,6 +508,7 @@ const PlayerDetailPage = () => {
                           </div>
                         </div>
 
+                        <p className="text-xs text-gray-400">Cada media utiliza solo los partidos con datos de esa estadística. Los datos desconocidos no cuentan como cero.</p>
                         <div className="grid grid-cols-[repeat(auto-fit,minmax(7.25rem,1fr))] gap-4">
                           {advancedSummary.map((item) => (
                             <div
@@ -518,6 +519,7 @@ const PlayerDetailPage = () => {
                                 {item.label}
                               </span>
                               <p className="mt-2 text-white text-2xl font-black">{item.value}</p>
+                              <span className="mt-1 text-[0.6rem] text-gray-500">{item.games > 0 ? item.games + ' ' + (item.games === 1 ? 'partido con datos' : 'partidos con datos') : 'Sin datos'}</span>
                             </div>
                           ))}
                         </div>

@@ -9,7 +9,8 @@ test('discovers current and historic seasons per team', () => {
 });
 test('unknown minutes keep scoring averages, explicit DNP is excluded, minutes are never invented', () => {
  const s=summarizePlayerSeason([{minutes:null,points:8},{minutes:'12:00',points:10},{minutes:'00:00',points:0}]);
- assert.equal(s.playedGames.length,2); assert.equal(s.totalPoints,18); assert.equal(s.averagePoints,'9.0'); assert.equal(s.averageMinutes,'-');
+ assert.equal(s.playedGames.length,2); assert.equal(s.totalPoints,18); assert.equal(s.averagePoints,'9.0'); assert.equal(s.averageMinutes,'12:00');
+ assert.equal(summarizePlayerSeason([{minutes:null,points:8}]).averageMinutes,'-');
  assert.equal(summarizePlayerSeason([{minutes:'10:30'},{minutes:'11:00'}]).averageMinutes,'10:45');
  assert.equal(summarizePlayerSeason([]).averageMinutes,'-');
 });

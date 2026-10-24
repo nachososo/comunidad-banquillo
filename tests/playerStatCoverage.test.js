@@ -1,0 +1,50 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mergeStatRows, buildAdvancedTotals, formatPercentage } from '../src/utils/statCalculations.js';
+import { summarizePlayerSeason } from '../src/utils/playerSeasonStats.js';
+import { powerPlayerRow } from '../src/utils/banquigerPowers.js';
+const player={id:108,name:'Carlos'};
+const federation={matchId:22,playerId:108,fg:'7-7',threePt:'1-1',ft:'3-9',fouls:2,valuation:10,valuationSource:'federation-direct'};
+const complete={matchId:23,playerId:108,fg:'6-12',threePt:'0-2',ft:'5-9',oreb:3,dreb:15,assists:1,steals:1,blocks:0,turnovers:8,fouls:2,valuation:17,valuationSource:'team-app'};
+const rows=()=>[22,23].flatMap(matchId=>mergeStatRows({players:[player],gameStats:[{matchId:22,playerId:108,minutes:'43:15',points:18},{matchId:23,playerId:108,minutes:'39:42',points:17}].filter(s=>s.matchId===matchId),advancedStats:[federation,complete].filter(s=>s.matchId===matchId)}));
+test('Carlos averages advanced stats over one recorded match, points and timed minutes over two',()=>{
+ const data=rows(),totals=buildAdvancedTotals(data),season=summarizePlayerSeason(data);
+ assert.equal(totals.rebounds/totals.counts.rebounds,18);
+ assert.equal(totals.assists/totals.counts.assists,1);
+ assert.equal(totals.steals/totals.counts.steals,1);
+ assert.equal(totals.turnovers/totals.counts.turnovers,8);
+ assert.equal(totals.fouls/totals.counts.fouls,2);
+ assert.equal(totals.valuation/totals.counts.valuation,17);
+ assert.equal(season.playedGames.length,2);
+ assert.equal(season.averagePoints,'17.5');
+ assert.equal(season.averageMinutes,'41:29');
+ assert.equal(formatPercentage(totals.fgMade,totals.fgAttempted),'50%');
+ assert.equal(formatPercentage(totals.threePtMade,totals.threePtAttempted),'0%');
+ assert.equal(formatPercentage(totals.ftMade,totals.ftAttempted),'44%');
+ assert.equal(totals.counts.ft,2);
+});
+test('federation summaries expose only their supported data, keeping fantasy scoring intact',()=>{
+ const row=rows()[0];
+ assert.equal(row.rebounds,null); assert.equal(row.fouls,null); assert.equal(row.valuation,null);
+ assert.equal(row.fgPct,'-'); assert.equal(row.threePtPct,'-'); assert.equal(row.ftPct,'33%');
+ assert.equal(powerPlayerRow({minutes:'43:15',points:18},federation,true).f,10);
+ assert.equal(powerPlayerRow({minutes:'39:42',points:17},complete,true).f,37);
+});
+test('recorded zero counts and missing fields have independent denominators',()=>{
+ const extra=mergeStatRows({players:[player],gameStats:[{matchId:24,playerId:108,minutes:'20:00',points:0}],advancedStats:[{matchId:24,playerId:108,fg:'0-0',ft:'0-0',oreb:0,dreb:0,steals:0,fouls:0,assists:null,turnovers:null}]});
+ const totals=buildAdvancedTotals([...rows(),...extra]);
+ assert.equal(totals.rebounds/totals.counts.rebounds,9);
+ assert.equal(totals.counts.rebounds,2);
+ assert.equal(totals.counts.assists,1);
+ assert.equal(totals.counts.turnovers,1);
+ assert.equal(totals.steals/totals.counts.steals,0.5);
+});
+test('unknown and partially recorded rebounds never become zero observations',()=>{
+ const data=mergeStatRows({players:[player],gameStats:[{matchId:1,playerId:108,minutes:'20:00',points:4}],advancedStats:[{matchId:1,playerId:108,oreb:2,dreb:null,assists:null,fg:null,ft:null}]});
+ const totals=buildAdvancedTotals(data);
+ assert.equal(data[0].rebounds,null);
+ assert.equal(data[0].valuation,null);
+ assert.equal(totals.counts.rebounds,0);
+ assert.equal(totals.counts.assists,0);
+ assert.equal(totals.counts.valuation,0);
+});

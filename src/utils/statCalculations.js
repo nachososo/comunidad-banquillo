@@ -55,6 +55,33 @@ export const getValuation = (stat, points) => {
   );
 };
 
+const hasStatValue = value => value !== null && value !== undefined &&
+  String(value).trim() !== '' && Number.isFinite(Number(value));
+
+const hasShotData = value => {
+  if (typeof value !== 'string' || !/^\d+-\d+$/.test(value)) return false;
+  const { made, attempted } = parseMadeAttempt(value);
+  return made <= attempted;
+};
+
+// Only known statistics contribute to a season summary. Federation-only
+// imports supply points, timed minutes and free throws for these summaries.
+export const getStatCoverage = stat => {
+  const basicOnly = ['federation', 'federation-direct'].includes(stat?.valuationSource);
+  const numeric = field => !basicOnly && hasStatValue(stat?.[field]);
+  return {
+    rebounds: numeric('oreb') && numeric('dreb'),
+    steals: numeric('steals'), assists: numeric('assists'),
+    fouls: numeric('fouls'), turnovers: numeric('turnovers'),
+    valuation: !basicOnly && (hasStatValue(stat?.valuation) ||
+      (hasShotData(stat?.fg) && hasShotData(stat?.ft) &&
+       ['oreb','dreb','assists','steals','blocks','turnovers','fouls'].every(numeric))),
+    fg: !basicOnly && hasShotData(stat?.fg),
+    threePt: !basicOnly && hasShotData(stat?.threePt),
+    ft: hasShotData(stat?.ft),
+  };
+};
+
 export const mergeStatRows = ({ gameStats, advancedStats, players }) => {
   const gameStatsByPlayer = new Map(gameStats.map((stat) => [stat.playerId, stat]));
   const advancedStatsByPlayer = new Map(advancedStats.map((stat) => [stat.playerId, stat]));
@@ -68,6 +95,7 @@ export const mergeStatRows = ({ gameStats, advancedStats, players }) => {
       const gameStat = gameStatsByPlayer.get(playerId);
       const advancedStat = advancedStatsByPlayer.get(playerId);
       const points = gameStat?.points ?? advancedStat?.points ?? 0;
+      const coverage = getStatCoverage(advancedStat);
 
       return {
         matchId: gameStat?.matchId ?? advancedStat.matchId,
@@ -76,59 +104,44 @@ export const mergeStatRows = ({ gameStats, advancedStats, players }) => {
         minutes: gameStat?.minutes ?? '-',
         points,
         advanced: advancedStat,
-        rebounds: getRebounds(advancedStat),
-        fgPct: advancedStat ? formatStatPercentage(advancedStat.fg) : '-',
-        threePtPct: advancedStat ? formatStatPercentage(advancedStat.threePt) : '-',
-        ftPct: advancedStat ? formatStatPercentage(advancedStat.ft) : '-',
-        steals: advancedStat?.steals ?? null,
-        turnovers: advancedStat?.turnovers ?? null,
-        assists: advancedStat?.assists ?? null,
-        fouls: advancedStat?.fouls ?? null,
-        valuation: getValuation(advancedStat, points),
+        coverage,
+        rebounds: coverage.rebounds ? getRebounds(advancedStat) : null,
+        fgPct: coverage.fg ? formatStatPercentage(advancedStat.fg) : '-',
+        threePtPct: coverage.threePt ? formatStatPercentage(advancedStat.threePt) : '-',
+        ftPct: coverage.ft ? formatStatPercentage(advancedStat.ft) : '-',
+        steals: coverage.steals ? Number(advancedStat.steals) : null,
+        turnovers: coverage.turnovers ? Number(advancedStat.turnovers) : null,
+        assists: coverage.assists ? Number(advancedStat.assists) : null,
+        fouls: coverage.fouls ? Number(advancedStat.fouls) : null,
+        valuation: coverage.valuation ? (hasStatValue(advancedStat.valuation) ? Number(advancedStat.valuation) : getValuation(advancedStat, points)) : null,
       };
     })
     .filter(Boolean);
 };
 
-export const buildAdvancedTotals = (stats) => {
-  return stats.reduce(
-    (totals, stat) => {
-      if (!stat.advanced) return totals;
-
-      const fg = parseMadeAttempt(stat.advanced.fg);
-      const threePt = parseMadeAttempt(stat.advanced.threePt);
-      const ft = parseMadeAttempt(stat.advanced.ft);
-
-      totals.games += 1;
-      totals.rebounds += stat.rebounds ?? 0;
-      totals.steals += stat.steals ?? 0;
-      totals.turnovers += stat.turnovers ?? 0;
-      totals.assists += stat.assists ?? 0;
-      totals.fouls += stat.fouls ?? 0;
-      totals.valuation += stat.valuation ?? 0;
-      totals.fgMade += fg.made;
-      totals.fgAttempted += fg.attempted;
-      totals.threePtMade += threePt.made;
-      totals.threePtAttempted += threePt.attempted;
-      totals.ftMade += ft.made;
-      totals.ftAttempted += ft.attempted;
-
-      return totals;
-    },
-    {
-      games: 0,
-      rebounds: 0,
-      steals: 0,
-      turnovers: 0,
-      assists: 0,
-      fouls: 0,
-      valuation: 0,
-      fgMade: 0,
-      fgAttempted: 0,
-      threePtMade: 0,
-      threePtAttempted: 0,
-      ftMade: 0,
-      ftAttempted: 0,
-    },
-  );
+export const buildAdvancedTotals = stats => {
+  const metrics = ['rebounds','steals','turnovers','assists','fouls','valuation'];
+  const totals = {
+    games: 0, ...Object.fromEntries(metrics.map(key => [key, 0])),
+    counts: Object.fromEntries([...metrics,'fg','threePt','ft'].map(key => [key, 0])),
+    fgMade: 0, fgAttempted: 0, threePtMade: 0, threePtAttempted: 0, ftMade: 0, ftAttempted: 0,
+  };
+  for (const stat of stats) {
+    if (!stat.advanced) continue;
+    totals.games += 1;
+    const coverage = stat.coverage || getStatCoverage(stat.advanced);
+    for (const key of metrics) {
+      if (!coverage[key] || !hasStatValue(stat[key])) continue;
+      totals[key] += Number(stat[key]);
+      totals.counts[key] += 1;
+    }
+    for (const key of ['fg','threePt','ft']) {
+      if (!coverage[key]) continue;
+      const pair = parseMadeAttempt(stat.advanced[key]);
+      totals[key + 'Made'] += pair.made;
+      totals[key + 'Attempted'] += pair.attempted;
+      totals.counts[key] += 1;
+    }
+  }
+  return totals;
 };

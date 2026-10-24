@@ -20,14 +20,14 @@ export function statMinutesToSeconds(minutes) {
 export function summarizePlayerSeason(rows) {
   // A published row without timed minutes is a game; explicit 00:00 is a DNP.
   const playedGames = rows.filter(row => statMinutesToSeconds(row.minutes) !== 0);
-  const tracked = playedGames.map(row => statMinutesToSeconds(row.minutes));
+  const tracked = playedGames.map(row => statMinutesToSeconds(row.minutes)).filter(seconds => seconds !== null);
   const totalSeconds = tracked.reduce((sum, seconds) => sum + (seconds || 0), 0);
-  const roundedSeconds = Math.round(totalSeconds / (playedGames.length || 1));
+  const roundedSeconds = Math.round(totalSeconds / (tracked.length || 1));
   return {
     playedGames,
     totalPoints: playedGames.reduce((sum, row) => sum + (Number(row.points) || 0), 0),
     averagePoints: playedGames.length ? (playedGames.reduce((sum, row) => sum + (Number(row.points) || 0), 0) / playedGames.length).toFixed(1) : '0.0',
-    averageMinutes: playedGames.length && tracked.every(seconds => seconds !== null)
+    averageMinutes: tracked.length
       ? `${Math.floor(roundedSeconds / 60)}:${String(roundedSeconds % 60).padStart(2, '0')}` : '-',
   };
 }
