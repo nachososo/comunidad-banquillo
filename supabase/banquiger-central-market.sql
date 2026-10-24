@@ -33,7 +33,7 @@ begin
               -case when s.free_throws ~ '^[0-9]+-[0-9]+$' then greatest(0,split_part(s.free_throws,'-',2)::int-split_part(s.free_throws,'-',1)::int) else 0 end;
           end if;
         end if;
-        delta:=case when not played then -0.1 when val-reference>=2 then 0.1 when val-reference<=-2 then -0.1 else 0 end;
+        delta:=case when not played then -0.1 when val-reference>=2 then 0.1 when val-reference<=-5 then -0.1 else 0 end;
         next_price:=greatest(0.3,round(prior+delta,1)); delta:=next_price-prior;
         reference_values:=jsonb_set(reference_values,array[player_key],to_jsonb(reference));
         valuations:=jsonb_set(valuations,array[player_key],case when played then to_jsonb(val) else 'null'::jsonb end);

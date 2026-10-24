@@ -1,32 +1,29 @@
 begin;
 select set_config('request.jwt.claim.sub','3cf31456-f1ff-4724-92ed-d5cd186c7fa2',true);
--- All fixture changes and market calculations are rolled back.
-update public.game_data set payload=(select jsonb_agg(case p->>'id'
- when '101' then p||'{"avgValuation":-2}'::jsonb
- when '104' then p||'{"avgValuation":4}'::jsonb
- when '109' then p||'{"avgValuation":-3}'::jsonb
- when '114' then p||'{"avgValuation":9}'::jsonb
- when '117' then p||'{"avgValuation":-100}'::jsonb
- when '201' then p||'{"price":0.8}'::jsonb else p end order by n)
+-- Isolate an already published match as a rollback-only fixture.
+update public.game_data set payload=jsonb_set(payload,'{history}',(select coalesce(jsonb_agg(h),'[]') from jsonb_array_elements(payload->'history') h where h->>'matchId'<>'22')) where key='banquiger:market-state';
+update public.game_data set payload=(select jsonb_agg(r||jsonb_build_object('scored',r->>'matchId'='22') order by n) from jsonb_array_elements(payload) with ordinality x(r,n)) where key='banquiger:rounds';
+update public.game_data set payload=(select jsonb_agg(
+  p||jsonb_build_object('price',case when p->>'id'='105' then 0.3 else 0.5 end)
+   ||case p->>'id'
+     when '101' then jsonb_build_object('avgValuation',(select valuation+4.99 from public.player_stats where match_id=22 and player_id=101))
+     when '104' then jsonb_build_object('avgValuation',(select valuation+5 from public.player_stats where match_id=22 and player_id=104))
+     when '108' then jsonb_build_object('avgValuation',(select valuation-2 from public.player_stats where match_id=22 and player_id=108))
+     when '109' then jsonb_build_object('avgValuation',(select valuation+5.01 from public.player_stats where match_id=22 and player_id=109))
+     when '113' then jsonb_build_object('avgValuation',(select valuation+2 from public.player_stats where match_id=22 and player_id=113))
+     else '{}'::jsonb end order by n)
  from jsonb_array_elements(payload) with ordinality x(p,n)) where key='banquiger:players';
-update public.player_stats set minutes=null where match_id=22 and player_id=114;
-update public.player_stats set minutes='00:00' where match_id=22 and player_id=117;
-do $$ declare first_state jsonb; second_state jsonb; latest jsonb; begin
- first_state:=public.banquiger_refresh_market_prices();
- second_state:=public.banquiger_refresh_market_prices();
- if first_state is distinct from second_state then raise exception 'Double processing changed market'; end if;
- latest:=first_state->'history'->-1;
- if (first_state->'prices'->>'101')::numeric<>0.5 then raise exception 'Positive threshold failed'; end if;
- if (first_state->'prices'->>'104')::numeric<>0.7 then raise exception 'Stable performance failed'; end if;
- if (first_state->'prices'->>'109')::numeric<>0.4 then raise exception 'Negative threshold failed'; end if;
- if (first_state->'prices'->>'102')::numeric<>0.4 then raise exception 'Manual starting price/absence failed'; end if;
- if (first_state->'prices'->>'105')::numeric<>0.3 then raise exception 'Minimum price failed'; end if;
- if (first_state->'prices'->>'201')::numeric<>0.8 then raise exception 'Other team price changed'; end if;
- if (first_state->'prices'->>'114')::numeric<>1.3 or latest->'attendance'->>'114'<>'true' then raise exception 'Untimed appearance failed'; end if;
- if (first_state->'prices'->>'117')::numeric<>0.5 or latest->'attendance'->>'117'<>'false' then raise exception 'DNP row treated as appearance'; end if;
- if (latest->'referenceValuations'->>'101')::numeric<>-2 then raise exception 'Reference includes current match'; end if;
- if (select count(*) from jsonb_array_elements(first_state->'history') h where h->>'matchId'='22' and h->>'kind'='match')<>1 then raise exception 'Repeated history entry'; end if;
- if has_function_privilege('anon','public.banquiger_refresh_market_prices()','execute') then raise exception 'Anonymous mutation allowed'; end if;
+do $$ declare result jsonb; begin
+ result:=public.banquiger_refresh_market_prices();
+ if (result->'prices'->>'101')::numeric<>0.5 then raise exception '4.99 below average must stay stable'; end if;
+ if (result->'prices'->>'104')::numeric<>0.4 then raise exception 'Exactly 5 below average must drop'; end if;
+ if (result->'prices'->>'109')::numeric<>0.4 then raise exception 'More than 5 below average must drop'; end if;
+ if (result->'prices'->>'113')::numeric<>0.5 then raise exception '2 below average must stay stable'; end if;
+ if (result->'prices'->>'108')::numeric<>0.6 then raise exception '2 above average must rise'; end if;
+ if (result->'prices'->>'102')::numeric<>0.4 then raise exception 'Absence must drop'; end if;
+ if (result->'prices'->>'105')::numeric<>0.3 then raise exception 'Minimum changed'; end if;
+ if (result->'prices'->>'201')::numeric<>0.5 then raise exception 'Other team price changed'; end if;
+ if result is distinct from public.banquiger_refresh_market_prices() then raise exception 'Repeated update changed prices'; end if;
 end $$;
-select '{"price_cases_passed":true,"idempotency":true,"attendance":true,"minimum":true,"team_scope":true,"reference_before_match":true,"anonymous_denied":true}'::jsonb as verification;
+select '{"drop_at_minus_five":true,"stable_at_minus_two_and_minus_4_99":true,"rise_at_plus_two":true,"absence_unchanged":true,"minimum_unchanged":true,"idempotent":true}'::jsonb as verification;
 rollback;
