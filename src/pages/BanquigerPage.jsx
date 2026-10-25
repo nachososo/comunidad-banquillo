@@ -396,6 +396,8 @@ const BanquigerPage = () => {
   const [saved, setSaved] = useState(false);
   const [powers, setPowers] = useState(() => getStoredBanquigerPowers());
   const [powerState, setPowerState] = useState(emptyBanquigerLeague);
+  const [leagueStatus, setLeagueStatus] = useState('loading');
+  const [leagueRetry, setLeagueRetry] = useState(0);
   const [powerNotice, setPowerNotice] = useState('');
   const [registeredTeams, setRegisteredTeams] = useState([]);
   const persistenceQueue = useRef(Promise.resolve());
@@ -411,16 +413,12 @@ const BanquigerPage = () => {
       powerState: getStoredBanquigerPowerState(),
       marketState: getStoredBanquigerMarketState(),
     };
-    Promise.all([
-      loadBanquigerBundle(fallbacks),
-      loadBanquigerLeague(),
-    ]).then(([bundle, userPowerState]) => {
+    loadBanquigerBundle(fallbacks).then((bundle) => {
       if (!active) return;
       setSettings(saveStoredBanquigerSettings(bundle.settings));
       setRounds(saveStoredBanquigerRounds(bundle.rounds));
       saveStoredBanquigerPlayers(bundle.players);
       setPowers(saveStoredBanquigerPowers(bundle.powers));
-      setPowerState(userPowerState.data);
       if (bundle.marketState) saveStoredBanquigerMarketState(bundle.marketState);
       setMarketPlayers(getStoredBanquigerPlayers(buildPlayerMarket()));
     });
@@ -477,32 +475,44 @@ const BanquigerPage = () => {
   }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
     let active = true;
+    setPowerState(emptyBanquigerLeague);
+    setLeagueStatus('loading');
     const refresh = async () => {
-      const [data, settingsDoc, roundsDoc, leagueDoc, teams, playersDoc, marketDoc] = await Promise.all([
-        loadBanquigerMatchData(),
-        loadGameDocument(GAME_DATA_KEYS.banquigerSettings, getStoredBanquigerSettings()),
-        loadGameDocument(GAME_DATA_KEYS.banquigerRounds, getStoredBanquigerRounds()),
-        loadBanquigerLeague(),
-        loadBanquigerTeams(),
-        loadGameDocument(GAME_DATA_KEYS.banquigerPlayers, getStoredBanquigerPlayers(buildPlayerMarket(), { includeInactive: true })),
-        loadGameDocument(GAME_DATA_KEYS.banquigerMarketState, getStoredBanquigerMarketState()),
-      ]);
-      if (!active) return;
-      if (playersDoc.remote) saveStoredBanquigerPlayers(playersDoc.data);
-      if (marketDoc.remote) saveStoredBanquigerMarketState(marketDoc.data);
-      setPowerState(leagueDoc.data);
-      setRegisteredTeams(teams);
-      setMatchData(data);
-      setRounds(saveStoredBanquigerRounds(mergeBanquigerCalendarRounds(roundsDoc.data)));
-      setSettings(saveStoredBanquigerSettings(settingsDoc.data));
-      setMarketPlayers(getStoredBanquigerPlayers(buildPlayerMarket(data)));
+      try {
+        const [data, settingsDoc, roundsDoc, leagueDoc, teams, playersDoc, marketDoc] = await Promise.all([
+          loadBanquigerMatchData(),
+          loadGameDocument(GAME_DATA_KEYS.banquigerSettings, getStoredBanquigerSettings()),
+          loadGameDocument(GAME_DATA_KEYS.banquigerRounds, getStoredBanquigerRounds()),
+          loadBanquigerLeague(),
+          loadBanquigerTeams(),
+          loadGameDocument(GAME_DATA_KEYS.banquigerPlayers, getStoredBanquigerPlayers(buildPlayerMarket(), { includeInactive: true })),
+          loadGameDocument(GAME_DATA_KEYS.banquigerMarketState, getStoredBanquigerMarketState()),
+        ]);
+        if (!active) return;
+        if (playersDoc.remote) saveStoredBanquigerPlayers(playersDoc.data);
+        if (marketDoc.remote) saveStoredBanquigerMarketState(marketDoc.data);
+        if (leagueDoc.remote) {
+          setPowerState(leagueDoc.data);
+          setLeagueStatus('ready');
+        } else {
+          setLeagueStatus('error');
+        }
+        setRegisteredTeams(teams);
+        setMatchData(data);
+        setRounds(saveStoredBanquigerRounds(mergeBanquigerCalendarRounds(roundsDoc.data)));
+        setSettings(saveStoredBanquigerSettings(settingsDoc.data));
+        setMarketPlayers(getStoredBanquigerPlayers(buildPlayerMarket(data)));
+      } catch {
+        if (active) setLeagueStatus('error');
+      }
     };
     void refresh();
     const timer = window.setInterval(refresh, 60000);
     window.addEventListener('focus', refresh);
     return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', refresh); };
-  }, []);
+  }, [isAuthenticated, user?.id, leagueRetry]);
 
   const selectedPlayers = useMemo(
     () => selectedIds.map((id) => marketPlayers.find((player) => player.id === id)).filter(Boolean),
@@ -1004,6 +1014,15 @@ const BanquigerPage = () => {
         </div>
       </div>
 
+      {leagueStatus === 'error' && (
+        <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-white/5 p-3 text-sm text-gray-300">
+          <p className="m-0">No se ha podido actualizar el historial de jornadas.</p>
+          <button type="button" onClick={() => setLeagueRetry(value => value + 1)} className="font-bold text-[hsl(43_65%_52%)]">Reintentar</button>
+        </div>
+      )}
+      {rankingView === 'round' && leagueStatus === 'loading' && !publishedRoundRankings.length && (
+        <p role="status" className="py-6 text-center text-sm text-gray-400">Cargando jornadas…</p>
+      )}
       {rankingView === 'round' && publishedRoundRankings.length > 0 && (
         <div className="mb-4 space-y-3">
           <label className="block text-sm font-bold text-gray-300">
@@ -1050,13 +1069,13 @@ const BanquigerPage = () => {
               <Eye size={16} />
             </span>
           </button>
-        )) : (
+        )) : (rankingView !== 'round' || leagueStatus === 'ready') ? (
           <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-5 py-8 text-center">
             <UsersRound className="mx-auto text-white/20" />
             <p className="mt-3 font-black text-gray-300">{rankingView === 'round' ? 'Todavía no hay jornadas publicadas' : 'Todavía no hay equipos en la clasificación'}</p>
             <p className="mt-1 text-sm text-gray-600">{rankingView === 'round' ? 'La clasificación aparecerá al repartir los puntos de la jornada.' : 'Los equipos aparecerán aquí cuando sus usuarios los creen.'}</p>
           </div>
-        )}
+        ) : null}
       </div>
 
       {renderRankingTeamModal()}

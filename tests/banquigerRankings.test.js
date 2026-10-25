@@ -102,3 +102,16 @@ test('personal cabinet displays league cup only for the league winner', () => {
   assert.equal(personal[0].type, 'league');
   assert.equal(personal[0].points, 50);
 });
+
+test('late entrants can view all earlier standings without being added to past rounds', () => {
+  const results = [honoursResult(honoursRounds[0].name, 17, 17), honoursResult(honoursRounds[1].name, 90, 89)];
+  const teams = [...honoursTeams, { id: 'late', user_id: 'new-user', manager_name: 'New manager', created_at: '2026-10-25T12:00:00Z' }];
+  const published = getPublishedRoundRankings(results, honoursRounds);
+  assert.equal(published.length, 2);
+  for (const result of published) {
+    const ranking = buildRoundLeaderboard(result, teams, 'new-user');
+    assert.equal(ranking.length, 2);
+    assert.equal(ranking.some(entry => entry.id === 'late'), false);
+    assert.equal(ranking.every(entry => !entry.current), true);
+  }
+});
