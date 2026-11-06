@@ -33,7 +33,7 @@ const PlantillaMasculinaPage = () => {
           >
             <h1 className="text-white mb-6">Plantilla Masculina</h1>
             <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-              Conoce a los 17 jugadores que defienden nuestros colores esta temporada. Talento, dedicación y pasión por
+              Conoce a los {sortedRoster.length} jugadores que defienden nuestros colores esta temporada. Talento, dedicación y pasión por
               el baloncesto en cada partido.
             </p>
           </motion.div>
