@@ -89,7 +89,7 @@ export const normalizeBanquigerPlayer = (player = {}) => ({
   ...player,
   id: String(player.id || '').trim(),
   name: String(player.name || '').trim(),
-  number: Math.round(clampNumber(player.number, 0, 0, 999)),
+  number: String(player.number) === '00' ? '00' : Math.round(clampNumber(player.number, 0, 0, 999)),
   position: getBanquigerPositions(player)[0],
   secondaryPositions: getBanquigerPositions(player).slice(1),
   positionsVersion: 2,

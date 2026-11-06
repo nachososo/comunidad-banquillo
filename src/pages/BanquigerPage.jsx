@@ -137,7 +137,9 @@ const getJerseyName = (player) =>
   JERSEY_NAMES_BY_NUMBER[player.number] ?? player.name.split(' ').at(-1)?.toUpperCase() ?? player.name.toUpperCase();
 
 const getJerseyImage = (player) => {
-  const imagePath = JERSEY_IMAGES_BY_NUMBER[player.number];
+  const imagePath = String(player.id) === '118'
+    ? '/img/banquiger-jerseys/ALBERTO_LOPEZ_00.png'
+    : JERSEY_IMAGES_BY_NUMBER[player.number];
   return imagePath ? `${imagePath}?${JERSEY_ASSET_VERSION}` : null;
 };
 

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1080" viewBox="0 0 720 1080">
+  <rect width="720" height="1080" fill="#111111"/>
+  <circle cx="360" cy="400" r="100" fill="#25231e"/>
+  <path d="M170 750v-65a190 190 0 0 1 380 0v65" fill="#25231e"/>
+  <text x="360" y="860" text-anchor="middle" font-family="Arial,sans-serif" font-size="27" letter-spacing="4" fill="#b59650">FOTO PENDIENTE</text>
+</svg>

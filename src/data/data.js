@@ -2,6 +2,19 @@ import { masculineCalendar2026 } from './masculineCalendar2026.js';
 
 export const menRoster = [
   {
+    id: 118,
+    name: 'Alberto López',
+    number: '00',
+    position: 'Pívot',
+    secondaryPositions: ['Ala-Pívot'],
+    positionsVersion: 2,
+    height: '—',
+    antiguedad: '—',
+    poster: '/img/player-photo-pending.svg',
+    profile_text: 'Pívot de la plantilla masculina de la Comunidad del Banquillo.',
+    team: 'masculine',
+  },
+  {
     id: 101,
     name: 'Jesús Arcenegui',
     number: 0,
