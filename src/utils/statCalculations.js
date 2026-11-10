@@ -71,7 +71,7 @@ export const getStatCoverage = stat => {
   const numeric = field => !basicOnly && hasStatValue(stat?.[field]);
   return {
     rebounds: numeric('oreb') && numeric('dreb'),
-    steals: numeric('steals'), assists: numeric('assists'),
+    steals: numeric('steals'), assists: numeric('assists'), blocks: numeric('blocks'),
     fouls: numeric('fouls'), turnovers: numeric('turnovers'),
     valuation: !basicOnly && (hasStatValue(stat?.valuation) ||
       (hasShotData(stat?.fg) && hasShotData(stat?.ft) &&
@@ -110,6 +110,7 @@ export const mergeStatRows = ({ gameStats, advancedStats, players }) => {
         threePtPct: coverage.threePt ? formatStatPercentage(advancedStat.threePt) : '-',
         ftPct: coverage.ft ? formatStatPercentage(advancedStat.ft) : '-',
         steals: coverage.steals ? Number(advancedStat.steals) : null,
+        blocks: coverage.blocks ? Number(advancedStat.blocks) : null,
         turnovers: coverage.turnovers ? Number(advancedStat.turnovers) : null,
         assists: coverage.assists ? Number(advancedStat.assists) : null,
         fouls: coverage.fouls ? Number(advancedStat.fouls) : null,
@@ -120,7 +121,7 @@ export const mergeStatRows = ({ gameStats, advancedStats, players }) => {
 };
 
 export const buildAdvancedTotals = stats => {
-  const metrics = ['rebounds','steals','turnovers','assists','fouls','valuation'];
+  const metrics = ['rebounds','steals','blocks','turnovers','assists','fouls','valuation'];
   const totals = {
     games: 0, ...Object.fromEntries(metrics.map(key => [key, 0])),
     counts: Object.fromEntries([...metrics,'fg','threePt','ft'].map(key => [key, 0])),

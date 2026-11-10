@@ -250,6 +250,7 @@ const PlayerDetailPage = () => {
     { label: 'T3%', value: formatPercentage(advancedTotals.threePtMade, advancedTotals.threePtAttempted), games: advancedTotals.counts.threePt },
     { label: 'TL%', value: formatPercentage(advancedTotals.ftMade, advancedTotals.ftAttempted), games: advancedTotals.counts.ft },
     { label: 'ROB media', value: formatAverage(advancedTotals.steals, advancedTotals.counts.steals), games: advancedTotals.counts.steals },
+    { label: 'TAP media', value: formatAverage(advancedTotals.blocks, advancedTotals.counts.blocks), games: advancedTotals.counts.blocks },
     { label: 'AST media', value: formatAverage(advancedTotals.assists, advancedTotals.counts.assists), games: advancedTotals.counts.assists },
     { label: 'FAL media', value: formatAverage(advancedTotals.fouls, advancedTotals.counts.fouls), games: advancedTotals.counts.fouls },
     { label: 'PER media', value: formatAverage(advancedTotals.turnovers, advancedTotals.counts.turnovers), games: advancedTotals.counts.turnovers },
