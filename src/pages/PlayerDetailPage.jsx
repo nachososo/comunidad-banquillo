@@ -548,7 +548,7 @@ const PlayerDetailPage = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-3 md:hidden">
+                  <div className="space-y-3 lg:hidden">
                     {seasonStats.map((stat) => (
                       <div
                         key={`${stat.matchId}-${stat.playerId}-mobile`}
@@ -604,38 +604,28 @@ const PlayerDetailPage = () => {
                     ))}
                   </div>
 
-                  <table className="hidden w-full table-fixed border-collapse text-left text-sm text-gray-200 md:table">
+                  <table className="hidden w-full table-fixed border-collapse text-left text-sm text-gray-200 lg:table">
                     <colgroup>
-                      <col className="w-[8%]" />
-                      <col className="w-[20%]" />
-                      <col className="w-[7%]" />
-                      <col className="w-[6%]" />
-                      <col className="w-[6%]" />
-                      <col className="w-[7%]" />
-                      <col className="w-[7%]" />
-                      <col className="w-[7%]" />
-                      <col className="w-[6%]" />
-                      <col className="w-[6%]" />
-                      <col className="w-[6%]" />
-                      <col className="w-[6%]" />
-                      <col className="w-[8%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[18%]" />
+                      <col span={12} className="w-[6%]" />
                     </colgroup>
                     <thead>
                       <tr className="border-b border-white/10 bg-white/[0.04] text-[0.65rem] uppercase tracking-wider text-gray-400">
-                        <th className="px-2 py-3 font-bold md:px-3">Fecha</th>
-                        <th className="px-2 py-3 font-bold md:px-3">Partido</th>
-                        <th className="px-2 py-3 text-center font-bold md:px-3">Min.</th>
-                        <th className="px-2 py-3 text-center font-bold md:px-3">PTS</th>
-                        <th className="px-2 py-3 text-center font-bold md:px-3">REB</th>
-                        <th className="px-2 py-3 text-center font-bold md:px-3">TC%</th>
-                        <th className="px-2 py-3 text-center font-bold md:px-3">T3%</th>
-                        <th className="px-2 py-3 text-center font-bold md:px-3">TL%</th>
-                        <th className="px-2 py-3 text-center font-bold md:px-3">ROB</th>
-                        <th className="px-2 py-3 text-center font-bold md:px-3">TAP</th>
-                        <th className="px-2 py-3 text-center font-bold md:px-3">AST</th>
-                        <th className="px-2 py-3 text-center font-bold md:px-3">FAL</th>
-                        <th className="px-2 py-3 text-center font-bold md:px-3">PER</th>
-                        <th className="px-2 py-3 text-center font-bold md:px-3">VAL</th>
+                        <th className="px-2 py-3 font-bold">Fecha</th>
+                        <th className="px-2 py-3 font-bold">Partido</th>
+                        <th className="px-2 py-3 text-center font-bold">Min.</th>
+                        <th className="px-2 py-3 text-center font-bold">PTS</th>
+                        <th className="px-2 py-3 text-center font-bold">REB</th>
+                        <th className="px-2 py-3 text-center font-bold">TC%</th>
+                        <th className="px-2 py-3 text-center font-bold">T3%</th>
+                        <th className="px-2 py-3 text-center font-bold">TL%</th>
+                        <th className="px-2 py-3 text-center font-bold">ROB</th>
+                        <th className="px-2 py-3 text-center font-bold">TAP</th>
+                        <th className="px-2 py-3 text-center font-bold">AST</th>
+                        <th className="px-2 py-3 text-center font-bold">FAL</th>
+                        <th className="px-2 py-3 text-center font-bold">PER</th>
+                        <th className="px-2 py-3 text-center font-bold">VAL</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -644,46 +634,46 @@ const PlayerDetailPage = () => {
                           key={`${stat.matchId}-${stat.playerId}`}
                           className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.03]"
                         >
-                          <td className="px-2 py-3 font-mono text-[10px] font-semibold leading-none text-[hsl(43_65%_52%)] md:px-3 md:text-xs">
+                          <td className="px-2 py-3 font-mono text-[10px] font-semibold leading-none text-[hsl(43_65%_52%)] md:text-xs">
                             {formatShortDate(stat.match.date)}
                           </td>
-                          <td className="break-words px-2 py-3 text-xs font-semibold leading-tight text-white md:px-3 md:text-sm">
+                          <td className="break-words px-2 py-3 text-xs font-semibold leading-tight text-white md:text-sm">
                             vs {stat.match.rival}
                           </td>
-                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:px-3 md:text-xs">
+                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:text-xs">
                             {stat.minutes}
                           </td>
-                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:px-3 md:text-xs">
+                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:text-xs">
                             {stat.points}
                           </td>
-                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:px-3 md:text-xs">
+                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:text-xs">
                             {stat.rebounds ?? '-'}
                           </td>
-                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:px-3 md:text-xs">
+                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:text-xs">
                             {stat.fgPct}
                           </td>
-                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:px-3 md:text-xs">
+                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:text-xs">
                             {stat.threePtPct}
                           </td>
-                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:px-3 md:text-xs">
+                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:text-xs">
                             {stat.ftPct}
                           </td>
-                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:px-3 md:text-xs">
+                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:text-xs">
                             {stat.steals ?? '-'}
                           </td>
-                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:px-3 md:text-xs">
+                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:text-xs">
                             {stat.blocks ?? '-'}
                           </td>
-                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:px-3 md:text-xs">
+                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:text-xs">
                             {stat.assists ?? '-'}
                           </td>
-                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:px-3 md:text-xs">
+                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:text-xs">
                             {stat.fouls ?? '-'}
                           </td>
-                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:px-3 md:text-xs">
+                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:text-xs">
                             {stat.turnovers ?? '-'}
                           </td>
-                          <td className="px-2 py-3 text-center font-mono text-[11px] font-black leading-none text-[hsl(43_65%_52%)] md:px-3 md:text-xs">
+                          <td className="px-2 py-3 text-center font-mono text-[11px] font-black leading-none text-[hsl(43_65%_52%)] md:text-xs">
                             {stat.valuation ?? '-'}
                           </td>
                         </tr>
