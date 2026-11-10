@@ -156,6 +156,7 @@ const MatchCard = ({ match, stats = null, players = allPlayers }) => {
                           <th className="px-3 py-3 text-right font-semibold">T3%</th>
                           <th className="px-3 py-3 text-right font-semibold">TL%</th>
                           <th className="px-3 py-3 text-right font-semibold">ROB</th>
+                          <th className="px-3 py-3 text-right font-semibold">TAP</th>
                           <th className="px-3 py-3 text-right font-semibold">AST</th>
                           <th className="px-3 py-3 text-right font-semibold">FAL</th>
                           <th className="px-3 py-3 text-right font-semibold">PER</th>
@@ -173,6 +174,7 @@ const MatchCard = ({ match, stats = null, players = allPlayers }) => {
                             <td className={numericCellClass}>{stat.threePtPct}</td>
                             <td className={numericCellClass}>{stat.ftPct}</td>
                             <td className={numericCellClass}>{stat.steals ?? '-'}</td>
+                            <td className={numericCellClass}>{stat.blocks ?? '-'}</td>
                             <td className={numericCellClass}>{stat.assists ?? '-'}</td>
                             <td className={numericCellClass}>{stat.fouls ?? '-'}</td>
                             <td className={numericCellClass}>{stat.turnovers ?? '-'}</td>

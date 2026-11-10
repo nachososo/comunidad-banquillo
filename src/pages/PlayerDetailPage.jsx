@@ -579,12 +579,13 @@ const PlayerDetailPage = () => {
                           ))}
                         </div>
 
-                        <div className="mt-2 grid grid-cols-6 gap-1.5">
+                        <div className="mt-2 grid grid-cols-4 gap-1.5">
                           {[
                             { label: 'TC', value: stat.fgPct },
                             { label: 'T3', value: stat.threePtPct },
                             { label: 'TL', value: stat.ftPct },
                             { label: 'ROB', value: stat.steals ?? '-' },
+                            { label: 'TAP', value: stat.blocks ?? '-' },
                             { label: 'AST', value: stat.assists ?? '-' },
                             { label: 'FAL', value: stat.fouls ?? '-' },
                             { label: 'PER', value: stat.turnovers ?? '-' },
@@ -630,6 +631,7 @@ const PlayerDetailPage = () => {
                         <th className="px-2 py-3 text-center font-bold md:px-3">T3%</th>
                         <th className="px-2 py-3 text-center font-bold md:px-3">TL%</th>
                         <th className="px-2 py-3 text-center font-bold md:px-3">ROB</th>
+                        <th className="px-2 py-3 text-center font-bold md:px-3">TAP</th>
                         <th className="px-2 py-3 text-center font-bold md:px-3">AST</th>
                         <th className="px-2 py-3 text-center font-bold md:px-3">FAL</th>
                         <th className="px-2 py-3 text-center font-bold md:px-3">PER</th>
@@ -668,6 +670,9 @@ const PlayerDetailPage = () => {
                           </td>
                           <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:px-3 md:text-xs">
                             {stat.steals ?? '-'}
+                          </td>
+                          <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:px-3 md:text-xs">
+                            {stat.blocks ?? '-'}
                           </td>
                           <td className="px-2 py-3 text-center font-mono text-[11px] font-bold leading-none md:px-3 md:text-xs">
                             {stat.assists ?? '-'}
